@@ -1,0 +1,54 @@
+package com.akash.auditapi.exception;
+
+public final class ApiMessages {
+    public static final String REQUEST_SUCCESSFUL = "Request completed successfully";
+    public static final String INVALID_VALUE = "Invalid value";
+    public static final String VALIDATION_FAILED = "Request validation failed";
+    public static final String INVALID_REQUEST = "Invalid request";
+    public static final String DATABASE_QUERY_FAILED = "The database query could not be completed";
+    public static final String UNEXPECTED_ERROR = "An unexpected error occurred";
+    public static final String VALID_API_KEY_REQUIRED = "A valid API key is required";
+    public static final String DATABASE_FAILURE_LOG = "Database failure while serving {}";
+    public static final String UNEXPECTED_FAILURE_LOG =
+            "Unexpected failure [internalCode={}] while serving {}";
+    public static final String NULL_ENTITY_ID = "Database row contains a null entity ID";
+    public static final String LOB_TOO_LARGE = "LOB value is too large for a JSON response";
+    public static final String SIMPLE_ORACLE_IDENTIFIER_REQUIRED =
+            "tableName must be a simple Oracle identifier";
+    public static final String SOURCE_TABLE_REQUIRED =
+            "Pass the source table name, not the audit table name";
+    public static final String INVALID_PAGE_NUMBER = "pageNo must be zero or greater";
+    public static final String API_KEY_CONFIGURATION_REQUIRED =
+            "AUDIT_API_KEY must be configured when API-key security is enabled";
+
+    private ApiMessages() {
+    }
+
+    public static String invalidPageSize(int maximum) {
+        return "pageSize must be between 1 and " + maximum;
+    }
+
+    public static String tableNotExposed(String table) {
+        return "Table is not exposed by this API: " + table;
+    }
+
+    public static String tablePairNotFound(String source, String audit) {
+        return "Source/audit table pair not found: " + source + ", " + audit;
+    }
+
+    public static String requiredColumnNotFound(String table, String column) {
+        return "Required column " + column + " not found in " + table;
+    }
+
+    public static String holidayNotFound(Long id) {
+        return "Holiday not found: " + id;
+    }
+
+    public static String maximumPageSizeExceeded(int maximum) {
+        return "audit-api.max-page-size cannot exceed " + maximum;
+    }
+
+    public static String invalidConfiguration(String property, String value) {
+        return "Invalid audit-api." + property + ": " + value;
+    }
+}

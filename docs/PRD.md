@@ -130,6 +130,37 @@ The paginated GET returns `PageResponse<HolidayResponse>`. DELETE returns the su
 
 ## 5. Audit behavior and data semantics
 
+### 5.1 Recommended Oracle architecture
+
+The production auditing model is **row-level trigger + audit table**. Oracle is the system of
+record for audit capture. Each approved source table has:
+
+- A corresponding `<SOURCE_TABLE>_AUD` history table.
+- An `AFTER INSERT OR UPDATE OR DELETE FOR EACH ROW` trigger managed by the database/DBA platform.
+- A shared entity key (`ID`) and Envers-compatible `REV` and `REVTYPE` audit columns.
+- Full source-column snapshots plus any approved audit metadata columns.
+
+Trigger behavior is:
+
+| Source DML | Snapshot written | `REVTYPE` | API operation |
+|---|---|---:|---|
+| `INSERT` | `:NEW` row | `0` | `INSERT` |
+| `UPDATE` | Updated `:NEW` row | `1` | `UPDATE` |
+| `DELETE` | Final `:OLD` row | `2` | `DELETE` |
+
+The trigger's audit insert must normally execute in the source transaction, without an autonomous
+commit, so source and history changes commit or roll back atomically. Revision numbers are supplied
+by the centralized Oracle audit mechanism and must be monotonically orderable. If revisions are
+transaction-wide, the database implementation must allocate/reuse one revision consistently for
+all affected rows rather than relying on an independent row-trigger sequence call.
+
+Audit history is append-only. Runtime application accounts receive no update/delete privileges on
+audit tables. Trigger code, revision allocation, deployment, reconciliation, retention,
+partitioning, archival, and optional actor/timestamp capture remain database/DBA responsibilities.
+This API does not create triggers, generate revisions, or insert audit records.
+
+### 5.2 API read behavior
+
 1. Resolve the audit table using `<SOURCE_TABLE>_AUD`.
 2. Require a shared single-column `ID` and audit columns `REV` and `REVTYPE`.
 3. Page distinct non-null IDs across the union of source and audit tables.
@@ -153,6 +184,10 @@ allowlist. Current configured examples are `PMC_HOLIDAY_CALENDAR`, `PMC_LOCO_SIN
 The runtime Oracle account must be least-privileged and read-only for generic audit queries.
 The production application does not create, modify, or seed database tables or rows. There is no
 runtime sample-data loader and no dummy-data SQL file.
+
+Before registering a table, the DBA must confirm that its row-level trigger is enabled, valid,
+tested for all three DML operations, and writes the required full snapshot atomically. Operations
+must monitor invalid/disabled triggers and periodically reconcile source/audit coverage.
 
 ## 7. Validation and error behavior
 
@@ -230,6 +265,8 @@ Production JPA schema generation remains disabled.
 - GET audit requests require no body and validate path/query inputs.
 - POST/PUT requests use validated request DTOs; controllers never expose JPA entities directly.
 - Every source and audit column returned by Oracle is preserved without Java field changes.
+- Oracle row-level triggers capture INSERT, UPDATE, and DELETE snapshots in the same transaction
+  as the source change using `REVTYPE` values `0`, `1`, and `2`.
 - Revision history is correctly grouped per ID and ordered independently of global revision reuse.
 - Deleted IDs remain returned with `originalData=null`.
 - Invalid identifiers cannot alter generated SQL.

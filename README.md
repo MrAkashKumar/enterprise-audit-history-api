@@ -19,6 +19,43 @@ The authoritative requirements and acceptance criteria are in [docs/PRD.md](docs
 - Optional API-key authentication.
 - JPA for the typed Holiday CRUD example and `JdbcTemplate` for generic dynamic audit reads.
 
+## Oracle enterprise audit architecture
+
+This project uses the recommended **row-level trigger + audit table** approach. Oracle owns audit
+capture; the Spring Boot API only reads the resulting source and audit tables.
+
+```text
+Application DML
+      │
+      ▼
+Oracle source table
+      │  AFTER INSERT OR UPDATE OR DELETE FOR EACH ROW
+      ▼
+Oracle row-level audit trigger
+      │
+      ▼
+<SOURCE_TABLE>_AUD
+      │
+      ▼
+Enterprise Audit History API (read only)
+```
+
+For every approved source table, the Oracle database provides a corresponding `<TABLE>_AUD` table
+and row-level trigger. The trigger writes a full snapshot with the entity `ID`, revision `REV`, and
+operation `REVTYPE`:
+
+| DML operation | Trigger image | `REVTYPE` |
+|---|---|---:|
+| `INSERT` | `:NEW` values | `0` |
+| `UPDATE` | Updated `:NEW` values | `1` |
+| `DELETE` | Final `:OLD` values | `2` |
+
+The audit insert should participate in the same Oracle transaction as the source change so both
+commit or roll back together. Audit tables should be append-only for application accounts; normal
+application users must not receive update/delete access to history. Revision allocation, audit
+trigger deployment, retention, partitioning, and optional actor/timestamp columns are owned by the
+database/DBA platform. The Java service never creates triggers and never writes audit rows.
+
 ## Technology
 
 - Java 21

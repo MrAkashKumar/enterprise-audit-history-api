@@ -13,6 +13,10 @@ public record AuditRevisionResponse(
         @JsonIgnore
         Map<String, Object> data
 ) {
+    public AuditRevisionResponse {
+        data = DatabaseRowSnapshot.copyOf(data);
+    }
+
     /** Flattens every physical audit-table column into this history JSON object. */
     @JsonAnyGetter
     public Map<String, Object> databaseColumns() {

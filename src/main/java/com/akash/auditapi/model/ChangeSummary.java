@@ -8,4 +8,6 @@ public record ChangeSummary(
         long unknownCount,
         Object firstRevision,
         Object latestRevision
-) {}
+) {
+    public static final ChangeSummary EMPTY = new ChangeSummary(0, 0, 0, 0, 0, null, null);
+}

@@ -1,5 +1,6 @@
 package com.akash.auditapi.service;
 
+import com.akash.auditapi.dao.AuditIdPage;
 import com.akash.auditapi.dao.TableAuditDao;
 import com.akash.auditapi.model.AuditRevisionResponse;
 import com.akash.auditapi.model.ChangeSummary;
@@ -30,8 +31,7 @@ class TableAuditServiceTest {
         TableDescriptor table = new TableDescriptor(
                 "PMC_HOLIDAY_CALENDAR", "PMC_HOLIDAY_CALENDAR_AUD", "ID", "REV", "REVTYPE");
         when(tableResolver.resolve("PMC_HOLIDAY_CALENDAR")).thenReturn(table);
-        when(auditDao.countDistinctIds(table)).thenReturn(2L);
-        when(auditDao.findPageIds(table, 0, 10)).thenReturn(List.of(1, 2));
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(1, 2), 2));
         Map<String, Object> completeSourceRow = Map.of(
                 "ID", 1,
                 "HOLIDAY_DATE", "2026-01-01",
@@ -72,8 +72,7 @@ class TableAuditServiceTest {
         TableDescriptor table = new TableDescriptor(
                 "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
-        when(auditDao.countDistinctIds(table)).thenReturn(0L);
-        when(auditDao.findPageIds(table, 0, 10)).thenReturn(List.of());
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(), 0));
 
         SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10);
 
@@ -82,13 +81,23 @@ class TableAuditServiceTest {
         assertThat(response.isHasNext()).isFalse();
     }
 
+    @Test void acceptsTheSamePublicLabelReturnedByAllTable() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_LOCO_SINGAPORE", "PMC_LOCO_SINGAPORE_AUD", "ID", "REV", "REVTYPE");
+        when(tableResolver.resolve("PMC_LOCO_SINGAPORE")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(), 0));
+
+        SearchResponse response = service.sourceWithAuditHistory("Loco Singapore", 0, 10);
+
+        assertThat(response.getSourceTable()).isEqualTo("PMC_LOCO_SINGAPORE");
+    }
+
     @Test void keepsGlobalEnversRevisionSequenceIndependentForEachEntity() {
         TableDescriptor table = new TableDescriptor(
                 "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1002, 1003);
         when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
-        when(auditDao.countDistinctIds(table)).thenReturn(2L);
-        when(auditDao.findPageIds(table, 0, 10)).thenReturn(ids);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
                 Map.of("ID", 1002, "TOTAL_AGGREGATED_QUANTITY", 0),
                 Map.of("ID", 1003, "TOTAL_AGGREGATED_QUANTITY", 801)));

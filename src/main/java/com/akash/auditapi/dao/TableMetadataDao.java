@@ -3,16 +3,18 @@ package com.akash.auditapi.dao;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Repository
 public class TableMetadataDao {
     private static final String FIND_TABLES_SQL =
             "select table_name from user_tables where table_name in (?, ?)";
-    private static final String COUNT_COLUMN_SQL =
-            "select count(*) from user_tab_columns where table_name = ? and column_name = ?";
+    private static final String FIND_COLUMNS_SQL =
+            "select table_name, column_name from user_tab_columns where table_name in (?, ?)";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -26,8 +28,13 @@ public class TableMetadataDao {
         return new HashSet<>(names);
     }
 
-    public boolean columnExists(String table, String column) {
-        Integer count = jdbcTemplate.queryForObject(COUNT_COLUMN_SQL, Integer.class, table, column);
-        return count != null && count > 0;
+    public Map<String, Set<String>> findColumnsByTable(String sourceTable, String auditTable) {
+        Map<String, Set<String>> columnsByTable = new HashMap<>();
+        jdbcTemplate.query(FIND_COLUMNS_SQL, resultSet -> {
+            String table = resultSet.getString("TABLE_NAME");
+            String column = resultSet.getString("COLUMN_NAME");
+            columnsByTable.computeIfAbsent(table, ignored -> new HashSet<>()).add(column);
+        }, sourceTable, auditTable);
+        return columnsByTable;
     }
 }

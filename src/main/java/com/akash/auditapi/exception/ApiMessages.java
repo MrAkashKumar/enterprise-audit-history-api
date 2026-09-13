@@ -51,4 +51,8 @@ public final class ApiMessages {
     public static String invalidConfiguration(String property, String value) {
         return "Invalid audit-api." + property + ": " + value;
     }
+
+    public static String duplicateAuditableTableName(String publicName) {
+        return "Duplicate auditable table name or label: " + publicName;
+    }
 }

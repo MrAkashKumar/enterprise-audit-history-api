@@ -169,6 +169,84 @@ Each `rows` item contains:
 - `changeSummary`: revision counts and first/latest revision.
 - `auditHistory`: ordered history with sequence, revision, operation, and every audit column.
 
+Current and deleted records use the same row shape:
+
+| Record state | `originalRecordPresent` | `originalData` | `auditHistory` |
+|---|---:|---|---|
+| Present in source table | `true` | Complete current source row | Complete ordered history |
+| Deleted from source table | `false` | `null` | Complete history, including the `DELETE` snapshot |
+
+Representative populated response (the dynamic column names come from the selected Oracle tables):
+
+```json
+{
+  "timestamp": "2026-09-14T00:15:30.412Z",
+  "status": 200,
+  "code": "SUCCESS",
+  "message": "Request completed successfully",
+  "data": {
+    "sourceTable": "PMC_LOCO_SINGAPORE",
+    "auditTable": "PMC_LOCO_SINGAPORE_AUD",
+    "pageNo": 0,
+    "pageSize": 10,
+    "numberOfElements": 1,
+    "totalElements": 1,
+    "totalPages": 1,
+    "hasPrevious": false,
+    "hasNext": false,
+    "rows": [
+      {
+        "id": 1001,
+        "originalRecordPresent": true,
+        "originalData": {
+          "ID": 1001,
+          "VERSION": 2,
+          "STATUS": "ACTIVE"
+        },
+        "changeSummary": {
+          "totalRevisions": 2,
+          "insertCount": 1,
+          "updateCount": 1,
+          "deleteCount": 0,
+          "unknownCount": 0,
+          "firstRevision": 9063,
+          "latestRevision": 9071
+        },
+        "auditHistory": [
+          {
+            "sequenceNumber": 1,
+            "revision": 9063,
+            "revisionTypeCode": 0,
+            "operation": "INSERT",
+            "ID": 1001,
+            "VERSION": 1,
+            "STATUS": "ACTIVE",
+            "REV": 9063,
+            "REVTYPE": 0
+          },
+          {
+            "sequenceNumber": 2,
+            "revision": 9071,
+            "revisionTypeCode": 1,
+            "operation": "UPDATE",
+            "ID": 1001,
+            "VERSION": 2,
+            "STATUS": "ACTIVE",
+            "REV": 9071,
+            "REVTYPE": 1
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`ID`, `VERSION`, and `STATUS` above are illustrative. At runtime, `originalData` contains every
+column returned by the source query and each `auditHistory` item contains every column returned by
+the audit query, including database `null` values. The API adds only the four derived history
+fields: `sequenceNumber`, `revision`, `revisionTypeCode`, and `operation`.
+
 Empty result shape:
 
 ```json
@@ -200,6 +278,8 @@ GET /api/v1/allTable
 
 This endpoint has no request body and no pagination. It returns `data.tableLabels` from the
 `AuditableTable` enum. Only original table labels are returned; audit names are not returned.
+The same label can be URL-encoded and passed to the detail endpoint, for example
+`GET /api/v1/Loco%20Singapore?pageNo=0&pageSize=10`.
 
 ### Holiday CRUD example
 
@@ -295,13 +375,16 @@ revisions.
 
 A warm generic audit request performs:
 
-1. One distinct-ID count query.
-2. One paged-ID query.
-3. One current-source-row query.
-4. One complete audit-history query.
+1. One paged-ID query that also returns the unpaged total using an Oracle window count.
+2. One current-source-row query.
+3. One complete audit-history query.
 
-Empty pages skip the last two queries. Successfully verified table descriptors are cached; source
-and audit records are never cached. Audit indexes should begin with `(ID, REV)`, subject to DBA
+This removes one database round trip from normal requests. A page beyond the available range uses
+one fallback count query because Oracle returns no window-count value for an empty result page.
+Empty pages skip the source and history queries. Successfully verified table descriptors are
+cached, and required columns are loaded in one metadata query during first resolution; source and
+audit records are never cached. Revision summaries are accumulated while history is grouped rather
+than by rescanning each entity history. Audit indexes should begin with `(ID, REV)`, subject to DBA
 review of existing indexes and real execution plans.
 
 ## Build and test

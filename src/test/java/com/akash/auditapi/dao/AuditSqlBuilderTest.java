@@ -15,7 +15,8 @@ class AuditSqlBuilderTest {
         assertThat(builder.countDistinctIds(table))
                 .contains("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID is not null");
         assertThat(builder.pageIds(table))
-                .contains("order by ENTITY_ID offset ? rows fetch next ? rows only");
+                .contains("count(*) over () TOTAL_ELEMENTS",
+                        "order by ENTITY_ID offset ? rows fetch next ? rows only");
         assertThat(builder.sourceRows(table))
                 .isEqualTo("select * from PMC_POSITION_BALANCE where ID in (:ids) order by ID, ID");
         assertThat(builder.auditRows(table))

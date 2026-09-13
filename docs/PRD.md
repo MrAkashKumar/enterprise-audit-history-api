@@ -96,6 +96,19 @@ Each item in `rows` contains `id`, `originalRecordPresent`, `originalData`, `cha
 `auditHistory`. `originalData` includes every source column returned by Oracle. Each history item
 contains the derived sequence/revision/operation fields and every audit-table column.
 
+The row contract is state-independent:
+
+| Entity state | Required API representation |
+|---|---|
+| Current source row exists | `originalRecordPresent=true`; `originalData` is the complete current row |
+| Source row was deleted | `originalRecordPresent=false`; `originalData=null`; history remains complete |
+| No audit revisions exist | Zero-valued `changeSummary`; empty `auditHistory` |
+| Unknown `REVTYPE` exists | Preserve the row and return `operation=UNKNOWN`; increment `unknownCount` |
+
+The service must preserve database `null` values and source column order in map-backed snapshots.
+It must not replace full row data with a reduced, table-specific projection. The success response
+must not contain `traceId`, `path`, or `processingTimeMs`.
+
 ### 4.2 Supported table labels
 
 ```http
@@ -227,10 +240,14 @@ messages; full exceptions are logged server-side with the trace ID.
 1,000-expression `IN` limit. The lower default protects JVM heap, connection occupancy, response
 size, and latency because one ID may expand into many audit snapshots.
 
-A warm audit request executes one count query, one ID-page query, one current-row query, and one
-audit-row query. Empty pages skip the last two. Verified table descriptors are cached; source and
-audit data are never cached. Recommended audit indexing begins with `(ID, REV)` and must be checked
-against actual Oracle execution plans and load-test percentiles.
+A warm audit request executes one ID-page query with an Oracle window count, one current-row query,
+and one audit-row query. This removes the separate count round trip for normal pages. A page beyond
+the available range performs one fallback count because an empty page has no window-count row.
+Empty pages skip source and audit-row loading. Verified table descriptors are cached, required
+columns are fetched together during first resolution, and source/audit data are never cached.
+Revision summaries are accumulated in the same pass that groups history. Recommended audit
+indexing begins with `(ID, REV)` and must be checked against actual Oracle execution plans and
+load-test percentiles.
 
 ## 10. Configuration
 

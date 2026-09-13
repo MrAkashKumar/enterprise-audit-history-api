@@ -14,4 +14,12 @@ class AuditableTableTest {
                 .extracting(AuditableTable::tableName)
                 .noneMatch(tableName -> tableName.endsWith("_AUD"));
     }
+
+    @Test
+    void resolvesLabelsAndPhysicalNamesToApprovedTableNames() {
+        assertThat(AuditableTable.resolveTableName("Loco Singapore")).isEqualTo("PMC_LOCO_SINGAPORE");
+        assertThat(AuditableTable.resolveTableName("position balance")).isEqualTo("PMC_POSITION_BALANCE");
+        assertThat(AuditableTable.resolveTableName("PMC_HOLIDAY_CALENDAR")).isEqualTo("PMC_HOLIDAY_CALENDAR");
+        assertThat(AuditableTable.resolveTableName("UNKNOWN")).isEqualTo("UNKNOWN");
+    }
 }

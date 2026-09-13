@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+
 import java.util.List;
 import java.util.Map;
 
@@ -28,9 +29,21 @@ public class TableAuditDao {
         return count == null ? 0 : count;
     }
 
-    public List<Object> findPageIds(TableDescriptor table, int pageNo, int pageSize) {
-        return jdbcTemplate.queryForList(sqlBuilder.pageIds(table), Object.class,
+    public AuditIdPage findIdPage(TableDescriptor table, int pageNo, int pageSize) {
+        List<IdWithTotal> page = jdbcTemplate.query(sqlBuilder.pageIds(table),
+                (resultSet, rowNumber) -> new IdWithTotal(
+                        resultSet.getObject(AuditSqlBuilder.ENTITY_ID_ALIAS),
+                        resultSet.getLong(AuditSqlBuilder.TOTAL_ELEMENTS_ALIAS)),
                 Math.multiplyExact((long) pageNo, pageSize), pageSize);
+        if (!page.isEmpty()) {
+            return new AuditIdPage(page.stream().map(IdWithTotal::id).toList(),
+                    page.getFirst().totalElements());
+        }
+
+        // A page beyond the last row has no window-count value, so retain the
+        // previous total-elements behaviour with one fallback count query.
+        long totalElements = pageNo == 0 ? 0 : countDistinctIds(table);
+        return new AuditIdPage(List.of(), totalElements);
     }
 
     public List<Map<String, Object>> findSourceRows(TableDescriptor table, List<Object> ids) {
@@ -46,5 +59,8 @@ public class TableAuditDao {
             return List.of();
         }
         return namedJdbcTemplate.query(sql, new MapSqlParameterSource("ids", ids), rowMapper);
+    }
+
+    private record IdWithTotal(Object id, long totalElements) {
     }
 }

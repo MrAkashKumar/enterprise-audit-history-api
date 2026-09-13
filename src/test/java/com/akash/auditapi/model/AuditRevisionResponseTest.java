@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AuditRevisionResponseTest {
     @Test
@@ -27,5 +28,10 @@ class AuditRevisionResponseTest {
                         "\"ID\":1002", "\"TOTAL_AGGREGATED_QUANTITY\":0",
                         "\"AUDIT_USER\":\"AUDIT_APP\"", "\"CREATED_BY\":null")
                 .doesNotContain("\"data\"");
+
+        databaseColumns.put("ID", 9999);
+        assertThat(response.databaseColumns()).containsEntry("ID", 1002);
+        assertThatThrownBy(() -> response.databaseColumns().put("ID", 9999))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

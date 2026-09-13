@@ -6,9 +6,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditSqlBuilder {
     static final String ENTITY_ID_ALIAS = "ENTITY_ID";
+    static final String TOTAL_ELEMENTS_ALIAS = "TOTAL_ELEMENTS";
     private static final String COUNT_IDS_SQL = "select count(*) from (%s)";
     private static final String PAGE_IDS_SQL =
-            "select %1$s from (%2$s) order by %1$s offset ? rows fetch next ? rows only";
+            "select %1$s, count(*) over () %2$s from (%3$s) "
+                    + "order by %1$s offset ? rows fetch next ? rows only";
     private static final String UNION_IDS_SQL =
             "select %1$s %2$s from %3$s where %1$s is not null "
                     + "union select %1$s %2$s from %4$s where %1$s is not null";
@@ -20,7 +22,7 @@ public class AuditSqlBuilder {
     }
 
     public String pageIds(TableDescriptor table) {
-        return PAGE_IDS_SQL.formatted(ENTITY_ID_ALIAS, unionIds(table));
+        return PAGE_IDS_SQL.formatted(ENTITY_ID_ALIAS, TOTAL_ELEMENTS_ALIAS, unionIds(table));
     }
 
     public String sourceRows(TableDescriptor table) {

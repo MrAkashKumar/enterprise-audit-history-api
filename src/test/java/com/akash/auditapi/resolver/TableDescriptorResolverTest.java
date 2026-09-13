@@ -8,6 +8,7 @@ import com.akash.auditapi.model.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,10 +29,8 @@ class TableDescriptorResolverTest {
     void resolvesAllowlistedCompleteEnversTablePair() {
         when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE", "ID")).thenReturn(true);
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE_AUD", "ID")).thenReturn(true);
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE_AUD", "REV")).thenReturn(true);
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE_AUD", "REVTYPE")).thenReturn(true);
+        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+                .thenReturn(completeColumns());
 
         assertThat(resolver.resolve("pmc_position_balance")).isEqualTo(new TableDescriptor(
                 "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE"));
@@ -41,20 +40,16 @@ class TableDescriptorResolverTest {
     void cachesVerifiedMetadataForRepeatedRequests() {
         when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE", "ID")).thenReturn(true);
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE_AUD", "ID")).thenReturn(true);
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE_AUD", "REV")).thenReturn(true);
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE_AUD", "REVTYPE")).thenReturn(true);
+        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+                .thenReturn(completeColumns());
 
         resolver.resolve("PMC_POSITION_BALANCE");
         resolver.resolve("pmc_position_balance");
 
         verify(metadataDao, times(1))
                 .findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD");
-        verify(metadataDao, times(1)).columnExists("PMC_POSITION_BALANCE", "ID");
-        verify(metadataDao, times(1)).columnExists("PMC_POSITION_BALANCE_AUD", "ID");
-        verify(metadataDao, times(1)).columnExists("PMC_POSITION_BALANCE_AUD", "REV");
-        verify(metadataDao, times(1)).columnExists("PMC_POSITION_BALANCE_AUD", "REVTYPE");
+        verify(metadataDao, times(1))
+                .findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD");
     }
 
     @Test
@@ -68,8 +63,17 @@ class TableDescriptorResolverTest {
 
         when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.columnExists("PMC_POSITION_BALANCE", "ID")).thenReturn(false);
+        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+                .thenReturn(Map.of(
+                        "PMC_POSITION_BALANCE", Set.of("VERSION"),
+                        "PMC_POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE")));
         assertCode("PMC_POSITION_BALANCE", ApiErrorCode.MISSING_REQUIRED_COLUMN);
+    }
+
+    private Map<String, Set<String>> completeColumns() {
+        return Map.of(
+                "PMC_POSITION_BALANCE", Set.of("ID"),
+                "PMC_POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE"));
     }
 
     private void assertCode(String table, ApiErrorCode code) {

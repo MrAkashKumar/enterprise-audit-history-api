@@ -11,6 +11,7 @@ import com.akash.auditapi.model.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -52,16 +53,17 @@ public class TableDescriptorResolver {
             throw new AuditTableNotFoundException(tablePairNotFound(source, audit));
         }
 
-        requireColumn(source, properties.idColumn());
-        requireColumn(audit, properties.idColumn());
-        requireColumn(audit, properties.auditOrderColumn());
-        requireColumn(audit, properties.revisionTypeColumn());
+        Map<String, Set<String>> columnsByTable = metadataDao.findColumnsByTable(source, audit);
+        requireColumn(columnsByTable, source, properties.idColumn());
+        requireColumn(columnsByTable, audit, properties.idColumn());
+        requireColumn(columnsByTable, audit, properties.auditOrderColumn());
+        requireColumn(columnsByTable, audit, properties.revisionTypeColumn());
         return new TableDescriptor(source, audit, properties.idColumn(),
                 properties.auditOrderColumn(), properties.revisionTypeColumn());
     }
 
-    private void requireColumn(String table, String column) {
-        if (!metadataDao.columnExists(table, column)) {
+    private void requireColumn(Map<String, Set<String>> columnsByTable, String table, String column) {
+        if (!columnsByTable.getOrDefault(table, Set.of()).contains(column)) {
             throw new MissingAuditColumnException(table, column);
         }
     }

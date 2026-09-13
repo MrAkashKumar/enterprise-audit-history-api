@@ -3,9 +3,11 @@ package com.akash.auditapi.dao;
 import com.akash.auditapi.model.TableDescriptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
@@ -28,13 +30,35 @@ class TableAuditDaoTest {
             "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
 
     @Test
-    void countsAndPaginatesDistinctIds() {
-        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(2L);
-        when(jdbcTemplate.queryForList(anyString(), eq(Object.class), eq(10L), eq(10)))
-                .thenReturn(List.of(1002, 1003));
+    void paginatesDistinctIdsAndReturnsWindowCount() throws Exception {
+        ResultSet resultSet = mock(ResultSet.class);
+        when(resultSet.getObject("ENTITY_ID")).thenReturn(1002, 1003);
+        when(resultSet.getLong("TOTAL_ELEMENTS")).thenReturn(2L);
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                eq(10L), eq(10)))
+                .thenAnswer(invocation -> {
+                    RowMapper<Object> mapper = invocation.getArgument(1);
+                    return List.of(mapper.mapRow(resultSet, 0), mapper.mapRow(resultSet, 1));
+                });
 
-        assertThat(dao.countDistinctIds(table)).isEqualTo(2);
-        assertThat(dao.findPageIds(table, 1, 10)).containsExactly(1002, 1003);
+        AuditIdPage result = dao.findIdPage(table, 1, 10);
+
+        assertThat(result.ids()).containsExactly(1002, 1003);
+        assertThat(result.totalElements()).isEqualTo(2);
+        verify(jdbcTemplate, never()).queryForObject(anyString(), eq(Long.class));
+    }
+
+    @Test
+    void fallsBackToCountForAnEmptyPageBeyondAvailableRows() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(2L);
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                eq(20L), eq(10)))
+                .thenReturn(List.of());
+
+        AuditIdPage result = dao.findIdPage(table, 2, 10);
+
+        assertThat(result.ids()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(2);
     }
 
     @Test

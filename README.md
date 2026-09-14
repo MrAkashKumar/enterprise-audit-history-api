@@ -109,6 +109,17 @@ to the controller or service.
 All controller payloads are returned only under `data`. The surrounding metadata is implemented
 once through `BaseApiResponse` and successful payloads use `ApiResponse<T>`.
 
+| Field | Success | Error | Purpose |
+|---|---:|---:|---|
+| `timestamp` | Yes | Yes | ISO-8601 response creation time |
+| `status` | `SUCCESS` | Specific failure status | Outcome matching the message |
+| `code` | `2000` | `4xxx` or `5xxx` | Stable application response code |
+| `message` | Yes | Yes | Safe result description |
+| `data` | Payload/null | `null` | Endpoint-specific response object |
+| `traceId` | No | Yes | Log and error-correlation identifier |
+| `error` | No | Yes | Standard HTTP reason phrase |
+| `details` | No | Yes | Validation failures or an empty array |
+
 ### Success
 
 ```json
@@ -145,6 +156,9 @@ The response never exposes the request path, SQL, credentials, stack traces, or 
 Application codes are stable four-digit strings defined by `ApiOutcomeCode`. `status` identifies
 the exact outcome that corresponds to `message`; the numeric protocol status remains in the HTTP
 response line.
+
+See [API Request and Response Examples](docs/API_RESPONSE_EXAMPLES.md) for every endpoint,
+request body, success response, and supported error response.
 
 ## API endpoints
 
@@ -295,6 +309,24 @@ This endpoint has no request body and no pagination. It returns `data.tableLabel
 The same label can be URL-encoded and passed to the detail endpoint, for example
 `GET /api/v1/Loco%20Singapore?pageNo=0&pageSize=10`.
 
+HTTP `200` response:
+
+```json
+{
+  "timestamp": "2026-09-14T04:30:00Z",
+  "status": "SUCCESS",
+  "code": "2000",
+  "message": "Request completed successfully",
+  "data": {
+    "tableLabels": [
+      "Holiday Calendar",
+      "Loco Singapore",
+      "Position Balance"
+    ]
+  }
+}
+```
+
 ### Holiday CRUD example
 
 ```http
@@ -317,6 +349,77 @@ GET and DELETE have no request body. POST and PUT accept `HolidayRequest`:
 The controller maps JPA entities to `HolidayResponse`; persistence entities are never returned
 directly. Paginated reads return `PageResponse<HolidayResponse>` under `data`. DELETE returns a
 success envelope with `data: null`.
+
+`GET /api/v1/holidays?pageNo=0&pageSize=10` returns HTTP `200`:
+
+```json
+{
+  "timestamp": "2026-09-14T04:32:00Z",
+  "status": "SUCCESS",
+  "code": "2000",
+  "message": "Request completed successfully",
+  "data": {
+    "pageNo": 0,
+    "pageSize": 10,
+    "numberOfElements": 1,
+    "totalElements": 1,
+    "totalPages": 1,
+    "hasPrevious": false,
+    "hasNext": false,
+    "rows": [
+      {
+        "id": 101,
+        "holidayDate": "2026-12-25",
+        "calendarCode": "SG",
+        "calendarName": "Singapore Calendar",
+        "version": 1,
+        "createdBy": "operations-user",
+        "createdOn": "2026-09-14T12:30:00",
+        "updatedBy": "operations-user",
+        "updatedOn": "2026-09-14T12:30:00"
+      }
+    ]
+  }
+}
+```
+
+`POST /api/v1/holidays` returns HTTP `201`; `PUT /api/v1/holidays/{id}` returns HTTP `200`.
+Both return this `HolidayResponse` shape under `data`:
+
+```json
+{
+  "timestamp": "2026-09-14T04:33:00Z",
+  "status": "SUCCESS",
+  "code": "2000",
+  "message": "Request completed successfully",
+  "data": {
+    "id": 101,
+    "holidayDate": "2026-12-25",
+    "calendarCode": "SG",
+    "calendarName": "Singapore Calendar",
+    "version": 1,
+    "createdBy": "operations-user",
+    "createdOn": "2026-09-14T12:30:00",
+    "updatedBy": "operations-user",
+    "updatedOn": "2026-09-14T12:33:00"
+  }
+}
+```
+
+`DELETE /api/v1/holidays/{id}` returns HTTP `200`:
+
+```json
+{
+  "timestamp": "2026-09-14T04:35:00Z",
+  "status": "SUCCESS",
+  "code": "2000",
+  "message": "Request completed successfully",
+  "data": null
+}
+```
+
+Complete request bodies and every error response are maintained in
+[API_RESPONSE_EXAMPLES.md](docs/API_RESPONSE_EXAMPLES.md).
 
 ## Registering another auditable table
 

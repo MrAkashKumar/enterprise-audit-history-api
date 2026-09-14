@@ -386,6 +386,11 @@ DELETE /api/v1/holidays/{id}
 Use validated request/response DTOs. Never expose the JPA entity from the controller. Do not add
 runtime seed data or create production Oracle tables. Production schema generation stays disabled.
 
+Generate and maintain one canonical `docs/API_RESPONSE_EXAMPLES.md` containing the request and
+complete success response for every endpoint, plus the full status/code matrix and representative
+validation, authentication, table/schema, database, and unexpected-error responses. Link it from
+README and PRD; do not let duplicated examples contradict it.
+
 ## 12. Configuration and code quality
 
 - Read Oracle secrets from environment variables or an enterprise secret manager.

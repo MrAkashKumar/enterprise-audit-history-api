@@ -64,6 +64,10 @@ The implementation uses `BaseApiResponse` for shared metadata, `ApiResponse<T>` 
 payloads, and `ApiError` for failures. This avoids metadata duplication while keeping the envelope
 flat and consistent.
 
+The canonical examples for every endpoint and error outcome are maintained in
+[API_RESPONSE_EXAMPLES.md](API_RESPONSE_EXAMPLES.md). Implemented JSON must remain consistent with
+that reference.
+
 ## 4. Endpoints and request contracts
 
 ### 4.1 Source row with audit history

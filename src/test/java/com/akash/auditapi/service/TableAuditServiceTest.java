@@ -32,8 +32,8 @@ class TableAuditServiceTest {
 
     @Test void groupsCurrentRowAndHistoryByIdIncludingDeletedRows() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_HOLIDAY_CALENDAR", "PMC_HOLIDAY_CALENDAR_AUD", "ID", "REV", "REVTYPE");
-        when(tableResolver.resolve("PMC_HOLIDAY_CALENDAR")).thenReturn(table);
+                "HOLIDAY_CALENDAR", "HOLIDAY_CALENDAR_AUD", "ID", "REV", "REVTYPE");
+        when(tableResolver.resolve("HOLIDAY_CALENDAR")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(1, 2), 2));
         Map<String, Object> completeSourceRow = Map.of(
                 "ID", 1,
@@ -54,7 +54,7 @@ class TableAuditServiceTest {
         when(auditDao.findAuditRows(table, List.of(1, 2))).thenReturn(List.of(
                 completeAuditRow, Map.of("ID", 1, "REV", 11, "REVTYPE", 1),
                 Map.of("ID", 2, "REV", 12, "REVTYPE", 2)));
-        SearchResponse response = service.sourceWithAuditHistory("PMC_HOLIDAY_CALENDAR", 0, 10);
+        SearchResponse response = service.sourceWithAuditHistory("HOLIDAY_CALENDAR", 0, 10);
         assertThat(response.getRows()).hasSize(2);
         assertThat(response.getRows().get(0).originalRecordPresent()).isTrue();
         assertThat(response.getRows().get(0).originalData()).containsEntry("HOLIDAY_NAME", "Current");
@@ -73,11 +73,11 @@ class TableAuditServiceTest {
 
     @Test void returnsEmptyPageWithoutQueryingRows() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
-        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(), 0));
 
-        SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10);
+        SearchResponse response = service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10);
 
         assertThat(response.getRows()).isEmpty();
         assertThat(response.getTotalPages()).isZero();
@@ -86,21 +86,21 @@ class TableAuditServiceTest {
 
     @Test void acceptsTheSamePublicLabelReturnedByAllTable() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_LOCO_SINGAPORE", "PMC_LOCO_SINGAPORE_AUD", "ID", "REV", "REVTYPE");
-        when(tableResolver.resolve("PMC_LOCO_SINGAPORE")).thenReturn(table);
+                "LOCO_SINGAPORE", "LOCO_SINGAPORE_AUD", "ID", "REV", "REVTYPE");
+        when(tableResolver.resolve("LOCO_SINGAPORE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(), 0));
 
         SearchResponse response = service.sourceWithAuditHistory("Loco Singapore", 0, 10);
 
         assertThat(response.getRows()).isEmpty();
-        verify(tableResolver).resolve("PMC_LOCO_SINGAPORE");
+        verify(tableResolver).resolve("LOCO_SINGAPORE");
     }
 
     @Test void keepsGlobalEnversRevisionSequenceIndependentForEachEntity() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1002, 1003);
-        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+        when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
                 Map.of("ID", 1002, "TOTAL_AGGREGATED_QUANTITY", 0),
@@ -110,7 +110,7 @@ class TableAuditServiceTest {
                 Map.of("ID", 1002, "REV", 9071, "REVTYPE", 1, "TOTAL_AGGREGATED_QUANTITY", 0),
                 Map.of("ID", 1003, "REV", 9071, "REVTYPE", 0, "TOTAL_AGGREGATED_QUANTITY", 801)));
 
-        SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10);
+        SearchResponse response = service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10);
 
         assertThat(response.getNumberOfElements()).isEqualTo(2);
         assertThat(response.getRows().get(0).auditHistory())
@@ -123,16 +123,16 @@ class TableAuditServiceTest {
 
     @Test void handlesSourceOnlyRowsAndUnknownRevisionTypes() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1, 2);
-        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+        when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
                 Map.of("ID", 1, "STATUS", "CURRENT")));
         when(auditDao.findAuditRows(table, ids)).thenReturn(List.of(
                 Map.of("ID", 2, "REV", 50, "REVTYPE", 99)));
 
-        SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10);
+        SearchResponse response = service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10);
 
         assertThat(response.getRows().get(0).changeSummary()).isEqualTo(ChangeSummary.EMPTY);
         assertThat(response.getRows().get(0).auditHistory()).isEmpty();
@@ -143,11 +143,11 @@ class TableAuditServiceTest {
 
     @Test void calculatesPreviousAndNextForMiddlePages() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
-        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 1, 10)).thenReturn(new AuditIdPage(List.of(), 30));
 
-        SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 1, 10);
+        SearchResponse response = service.sourceWithAuditHistory("POSITION_BALANCE", 1, 10);
 
         assertThat(response.isHasPrevious()).isTrue();
         assertThat(response.isHasNext()).isTrue();
@@ -155,13 +155,13 @@ class TableAuditServiceTest {
 
     @Test void rejectsDatabaseRowsWithoutTheConfiguredEntityId() {
         TableDescriptor table = new TableDescriptor(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1);
-        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+        when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 1));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(Map.of("STATUS", "INVALID")));
 
-        assertThatThrownBy(() -> service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10))
+        assertThatThrownBy(() -> service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Database row contains a null entity ID");
     }

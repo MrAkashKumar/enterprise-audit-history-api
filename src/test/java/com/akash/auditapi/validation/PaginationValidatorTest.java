@@ -1,7 +1,7 @@
 package com.akash.auditapi.validation;
 
 import com.akash.auditapi.config.AuditApiProperties;
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import org.junit.jupiter.api.Test;
 
@@ -25,11 +25,11 @@ class PaginationValidatorTest {
     void rejectsNegativePageAndInvalidSize() {
         assertThatThrownBy(() -> validator.validate(-1, 10))
                 .isInstanceOfSatisfying(InvalidRequestException.class,
-                        exception -> assertThat(exception.getCode()).isEqualTo(ApiErrorCode.INVALID_PAGE_NUMBER));
+                        exception -> assertThat(exception.getCode()).isEqualTo(ApiOutcomeCode.INVALID_PAGE_NO));
         for (int size : new int[]{0, 201}) {
             assertThatThrownBy(() -> validator.validate(0, size))
                     .isInstanceOfSatisfying(InvalidRequestException.class,
-                            exception -> assertThat(exception.getCode()).isEqualTo(ApiErrorCode.INVALID_PAGE_SIZE));
+                            exception -> assertThat(exception.getCode()).isEqualTo(ApiOutcomeCode.INVALID_PAGE_SIZE));
         }
     }
 }

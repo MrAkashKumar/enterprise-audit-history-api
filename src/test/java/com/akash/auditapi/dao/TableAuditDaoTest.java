@@ -27,7 +27,7 @@ class TableAuditDaoTest {
     private final TableAuditDao dao = new TableAuditDao(
             jdbcTemplate, namedJdbcTemplate, new AuditSqlBuilder(), rowMapper);
     private final TableDescriptor table = new TableDescriptor(
-            "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+            "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
 
     @Test
     void paginatesDistinctIdsAndReturnsWindowCount() throws Exception {
@@ -83,7 +83,7 @@ class TableAuditDaoTest {
         assertThat(dao.findAuditRows(table, List.of(1002))).isEqualTo(rows);
         assertThat(dao.findSourceRows(table, List.of())).isEmpty();
         verify(namedJdbcTemplate, never()).query(
-                eq("select * from PMC_POSITION_BALANCE where ID in (:ids) order by ID, ID"),
+                eq("select * from POSITION_BALANCE where ID in (:ids) order by ID, ID"),
                 any(MapSqlParameterSource.class), eq(rowMapper));
     }
 }

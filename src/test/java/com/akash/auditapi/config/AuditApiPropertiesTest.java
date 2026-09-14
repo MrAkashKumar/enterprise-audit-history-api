@@ -11,11 +11,11 @@ class AuditApiPropertiesTest {
     @Test
     void appliesCentralDefaultsAndNormalizesTables() {
         AuditApiProperties properties = new AuditApiProperties(
-                null, null, null, null, Set.of("pmc_position_balance"), 0);
+                null, null, null, null, Set.of("position_balance"), 0);
 
         assertThat(properties.auditSuffix()).isEqualTo("_AUD");
         assertThat(properties.revisionTypeColumn()).isEqualTo("REVTYPE");
-        assertThat(properties.allowedTables()).containsExactly("PMC_POSITION_BALANCE");
+        assertThat(properties.allowedTables()).containsExactly("POSITION_BALANCE");
         assertThat(properties.maxPageSize()).isEqualTo(200);
     }
 

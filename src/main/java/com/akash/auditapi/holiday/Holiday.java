@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "PMC_HOLIDAY_CALENDAR")
+@Table(name = "HOLIDAY_CALENDAR")
 public class Holiday {
     @Id
     private Long id;

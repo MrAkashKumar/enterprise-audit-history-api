@@ -5,16 +5,16 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.Instant;
 import java.util.Objects;
 
-public abstract class BaseApiResponse<C> {
+public abstract class BaseApiResponse {
     private final Instant timestamp;
-    private final int status;
-    private final C code;
+    private final ApiOutcomeCode status;
+    private final String code;
     private final String message;
 
-    protected BaseApiResponse(Instant timestamp, int status, C code, String message) {
+    protected BaseApiResponse(Instant timestamp, ApiOutcomeCode code, String message) {
         this.timestamp = Objects.requireNonNull(timestamp, "timestamp must not be null");
-        this.status = status;
-        this.code = Objects.requireNonNull(code, "code must not be null");
+        this.status = Objects.requireNonNull(code, "status must not be null");
+        this.code = code.applicationCode();
         this.message = Objects.requireNonNull(message, "message must not be null");
     }
 
@@ -23,11 +23,11 @@ public abstract class BaseApiResponse<C> {
         return timestamp;
     }
 
-    public int getStatus() {
+    public ApiOutcomeCode getStatus() {
         return status;
     }
 
-    public C getCode() {
+    public String getCode() {
         return code;
     }
 

@@ -107,30 +107,30 @@ to the controller or service.
 ## Response contract
 
 All controller payloads are returned only under `data`. The surrounding metadata is implemented
-once through `BaseApiResponse<C>` and successful payloads use `ApiResponse<T>`.
+once through `BaseApiResponse` and successful payloads use `ApiResponse<T>`.
 
 ### Success
 
 ```json
 {
   "timestamp": "<ISO-8601 timestamp>",
-  "status": 200,
-  "code": "SUCCESS",
+  "status": "SUCCESS",
+  "code": "2000",
   "message": "Request completed successfully",
   "data": {}
 }
 ```
 
-POST creation responses use HTTP/body status `201`. Other successful endpoints use `200`.
-Successful responses do not expose a trace ID.
+POST creation responses use HTTP `201`. Other successful endpoints use HTTP `200`. The numeric
+HTTP status is not repeated in the JSON body. Successful responses do not expose a trace ID.
 
 ### Error
 
 ```json
 {
   "timestamp": "<ISO-8601 timestamp>",
-  "status": 500,
-  "code": "INTERNAL_ERROR",
+  "status": "INTERNAL_ERROR",
+  "code": "5000",
   "message": "An unexpected error occurred",
   "data": null,
   "traceId": "<error correlation ID>",
@@ -142,9 +142,9 @@ Successful responses do not expose a trace ID.
 Validation errors place every rejected field in `details`. Other failures return an empty array.
 The response never exposes the request path, SQL, credentials, stack traces, or Oracle messages.
 
-Client-facing codes are readable and stable. Internally, `SUCCESS` maps to support code `1000` and
-the unknown-exception fallback maps to `0000` in backend logs. API consumers should use the
-client-facing `code` field.
+Application codes are stable four-digit strings defined by `ApiOutcomeCode`. `status` identifies
+the exact outcome that corresponds to `message`; the numeric protocol status remains in the HTTP
+response line.
 
 ## API endpoints
 
@@ -166,7 +166,7 @@ Example request without database-row data:
 
 ```bash
 curl --header 'X-API-Key: <configured-key>' \
-  'http://localhost:8080/api/v1/PMC_LOCO_SINGAPORE?pageNo=0&pageSize=10'
+  'http://localhost:8080/api/v1/LOCO_SINGAPORE?pageNo=0&pageSize=10'
 ```
 
 The `data` object is `SearchResponse`:
@@ -199,8 +199,8 @@ Representative populated response (the dynamic column names come from the select
 ```json
 {
   "timestamp": "2026-09-14T00:15:30.412Z",
-  "status": 200,
-  "code": "SUCCESS",
+  "status": "SUCCESS",
+  "code": "2000",
   "message": "Request completed successfully",
   "data": {
     "pageNo": 0,
@@ -268,8 +268,8 @@ Empty result shape:
 ```json
 {
   "timestamp": "<ISO-8601 timestamp>",
-  "status": 200,
-  "code": "SUCCESS",
+  "status": "SUCCESS",
+  "code": "2000",
   "message": "Request completed successfully",
   "data": {
     "pageNo": 0,
@@ -338,7 +338,7 @@ No table-specific generic-audit controller, service, DAO, entity, or response cl
 export ORACLE_URL='jdbc:oracle:thin:@//host:1521/service'
 export ORACLE_USERNAME='audit_reader'
 export ORACLE_PASSWORD='<secret-from-vault>'
-export AUDIT_ALLOWED_TABLES='PMC_HOLIDAY_CALENDAR,PMC_LOCO_SINGAPORE,PMC_POSITION_BALANCE'
+export AUDIT_ALLOWED_TABLES='HOLIDAY_CALENDAR,LOCO_SINGAPORE,POSITION_BALANCE'
 export AUDIT_MAX_PAGE_SIZE=200
 export AUDIT_API_KEY_ENABLED=true
 export AUDIT_API_KEY='<secret-from-vault>'
@@ -368,22 +368,28 @@ revisions.
 - MDC is cleared in a `finally` block to prevent thread-pool leakage.
 - `X-Trace-Id` and JSON `traceId` are returned only when an error occurs.
 
-## Error codes
+## Application response codes
 
-| Condition | HTTP | Code |
-|---|---:|---|
-| Invalid table identifier | 400 | `INVALID_TABLE_NAME` |
-| Invalid pagination | 400 | `INVALID_PAGE_NUMBER` / `INVALID_PAGE_SIZE` |
-| Invalid request body | 400 | `VALIDATION_FAILED` |
-| Invalid parameter type or malformed request | 400 | `INVALID_REQUEST` |
-| Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` |
-| Missing or invalid API key | 401 | `UNAUTHORIZED` |
-| Table not approved | 404 | `TABLE_NOT_ALLOWED` |
-| Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` |
-| Holiday missing | 404 | `HOLIDAY_NOT_FOUND` |
-| Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` |
-| Oracle/JDBC failure | 500 | `DATABASE_ERROR` |
-| Unknown exception | 500 | `INTERNAL_ERROR` |
+| Condition | HTTP | JSON `status` | JSON `code` |
+|---|---:|---|---:|
+| Success | 200/201 | `SUCCESS` | `2000` |
+| Redirect category (reserved) | 3xx | `REDIRECTION` | `3000` |
+| Invalid table identifier | 400 | `INVALID_TABLE_NAME` | `4000` |
+| Invalid page number | 400 | `INVALID_PAGE_NO` | `4001` |
+| Invalid page size | 400 | `INVALID_PAGE_SIZE` | `4002` |
+| Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` |
+| Invalid request body | 400 | `VALIDATION_FAILED` | `4004` |
+| Invalid parameter type or malformed request | 400 | `INVALID_REQUEST` | `4005` |
+| Missing or invalid API key | 401 | `UNAUTHORIZED` | `4006` |
+| Table not approved | 404 | `TABLE_NOT_ALLOWED` | `4007` |
+| Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
+| Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
+| Holiday missing | 404 | `HOLIDAY_NOT_FOUND` | `4010` |
+| Unexpected server failure | 500 | `INTERNAL_ERROR` | `5000` |
+| Oracle/JDBC failure | 500 | `DATABASE_ERROR` | `5001` |
+
+The ranges are reserved by outcome category: `2000–2999` success, `3000–3999` redirection,
+`4000–4999` client errors, and `5000–5999` server errors.
 
 ## Query and performance behavior
 

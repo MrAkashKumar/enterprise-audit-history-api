@@ -2,7 +2,7 @@ package com.akash.auditapi.resolver;
 
 import com.akash.auditapi.config.AuditApiProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.AuditApiException;
 import com.akash.auditapi.model.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
@@ -21,53 +21,53 @@ import static org.mockito.Mockito.when;
 class TableDescriptorResolverTest {
     private final TableMetadataDao metadataDao = mock(TableMetadataDao.class);
     private final AuditApiProperties properties = new AuditApiProperties(
-            "_AUD", "ID", "REV", "REVTYPE", Set.of("PMC_POSITION_BALANCE"), 200);
+            "_AUD", "ID", "REV", "REVTYPE", Set.of("POSITION_BALANCE"), 200);
     private final TableDescriptorResolver resolver = new TableDescriptorResolver(
             metadataDao, properties, new OracleIdentifierValidator());
 
     @Test
     void resolvesAllowlistedCompleteEnversTablePair() {
-        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
+        when(metadataDao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(completeColumns());
 
-        assertThat(resolver.resolve("pmc_position_balance")).isEqualTo(new TableDescriptor(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE"));
+        assertThat(resolver.resolve("position_balance")).isEqualTo(new TableDescriptor(
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE"));
     }
 
     @Test
     void cachesVerifiedMetadataForRepeatedRequests() {
-        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
+        when(metadataDao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(completeColumns());
 
-        resolver.resolve("PMC_POSITION_BALANCE");
-        resolver.resolve("pmc_position_balance");
+        resolver.resolve("POSITION_BALANCE");
+        resolver.resolve("position_balance");
 
         verify(metadataDao, times(1))
-                .findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD");
+                .findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD");
         verify(metadataDao, times(1))
-                .findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD");
+                .findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD");
     }
 
     @Test
     void rejectsAuditNameDisallowedTableMissingPairAndMissingColumn() {
-        assertCode("PMC_POSITION_BALANCE_AUD", ApiErrorCode.AUDIT_TABLE_NOT_ACCEPTED);
-        assertCode("PMC_SECRET", ApiErrorCode.TABLE_NOT_ALLOWED);
+        assertCode("POSITION_BALANCE_AUD", ApiOutcomeCode.AUDIT_TABLE_NOT_ACCEPTED);
+        assertCode("SECRET", ApiOutcomeCode.TABLE_NOT_ALLOWED);
 
-        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("PMC_POSITION_BALANCE"));
-        assertCode("PMC_POSITION_BALANCE", ApiErrorCode.TABLE_PAIR_NOT_FOUND);
+        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("POSITION_BALANCE"));
+        assertCode("POSITION_BALANCE", ApiOutcomeCode.TABLE_PAIR_NOT_FOUND);
 
-        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
+        when(metadataDao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(Map.of(
-                        "PMC_POSITION_BALANCE", Set.of("VERSION"),
-                        "PMC_POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE")));
-        assertCode("PMC_POSITION_BALANCE", ApiErrorCode.MISSING_REQUIRED_COLUMN);
+                        "POSITION_BALANCE", Set.of("VERSION"),
+                        "POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE")));
+        assertCode("POSITION_BALANCE", ApiOutcomeCode.MISSING_REQUIRED_COLUMN);
     }
 
     @Test
@@ -76,30 +76,30 @@ class TableDescriptorResolverTest {
                 "_AUD", "ID", "REV", "REVTYPE", Set.of(), 200);
         TableDescriptorResolver unrestricted = new TableDescriptorResolver(
                 metadataDao, unrestrictedProperties, new OracleIdentifierValidator());
-        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
-        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
+        when(metadataDao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(completeColumns());
 
-        assertThat(unrestricted.resolve("PMC_POSITION_BALANCE")).isNotNull();
+        assertThat(unrestricted.resolve("POSITION_BALANCE")).isNotNull();
 
         TableDescriptorResolver missingSourceResolver = new TableDescriptorResolver(
                 metadataDao, properties, new OracleIdentifierValidator());
-        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("PMC_POSITION_BALANCE_AUD"));
-        assertThatThrownBy(() -> missingSourceResolver.resolve("PMC_POSITION_BALANCE"))
+        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("POSITION_BALANCE_AUD"));
+        assertThatThrownBy(() -> missingSourceResolver.resolve("POSITION_BALANCE"))
                 .isInstanceOfSatisfying(AuditApiException.class,
                         exception -> assertThat(exception.getCode())
-                                .isEqualTo(ApiErrorCode.TABLE_PAIR_NOT_FOUND));
+                                .isEqualTo(ApiOutcomeCode.TABLE_PAIR_NOT_FOUND));
     }
 
     private Map<String, Set<String>> completeColumns() {
         return Map.of(
-                "PMC_POSITION_BALANCE", Set.of("ID"),
-                "PMC_POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE"));
+                "POSITION_BALANCE", Set.of("ID"),
+                "POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE"));
     }
 
-    private void assertCode(String table, ApiErrorCode code) {
+    private void assertCode(String table, ApiOutcomeCode code) {
         assertThatThrownBy(() -> resolver.resolve(table))
                 .isInstanceOfSatisfying(AuditApiException.class,
                         exception -> assertThat(exception.getCode()).isEqualTo(code));

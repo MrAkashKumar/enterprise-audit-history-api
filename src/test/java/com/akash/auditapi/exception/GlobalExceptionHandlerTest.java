@@ -1,5 +1,6 @@
 package com.akash.auditapi.exception;
 
+import com.akash.auditapi.model.ApiOutcomeCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.core.MethodParameter;
@@ -28,7 +29,8 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(404);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getTraceId()).isEqualTo("trace-error-123");
-        assertThat(response.getBody().getCode()).isEqualTo(ApiErrorCode.TABLE_NOT_ALLOWED);
+        assertThat(response.getBody().getStatus()).isEqualTo(ApiOutcomeCode.TABLE_NOT_ALLOWED);
+        assertThat(response.getBody().getCode()).isEqualTo("4007");
         assertThat(response.getBody().getData()).isNull();
     }
 
@@ -53,7 +55,8 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(400);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getCode()).isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+        assertThat(response.getBody().getStatus()).isEqualTo(ApiOutcomeCode.VALIDATION_FAILED);
+        assertThat(response.getBody().getCode()).isEqualTo("4004");
         assertThat(response.getBody().getDetails()).containsExactly(
                 new ApiFieldError("name", "must not be blank"),
                 new ApiFieldError("date", "must be in the future"));
@@ -66,8 +69,8 @@ class GlobalExceptionHandlerTest {
         var exception = new MethodArgumentNotValidException(mock(MethodParameter.class), bindingResult);
 
         var response = handler.bodyValidationError(exception);
-        ApiError directError = new ApiError(Instant.EPOCH, "trace", 400, "Bad Request",
-                ApiErrorCode.INVALID_REQUEST, "Invalid request", null);
+        ApiError directError = new ApiError(Instant.EPOCH, "trace", "Bad Request",
+                ApiOutcomeCode.INVALID_REQUEST, "Invalid request", null);
 
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getDetails())
@@ -83,7 +86,8 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(500);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getCode()).isEqualTo(ApiErrorCode.INTERNAL_ERROR);
+        assertThat(response.getBody().getStatus()).isEqualTo(ApiOutcomeCode.INTERNAL_ERROR);
+        assertThat(response.getBody().getCode()).isEqualTo("5000");
         assertThat(response.getBody().getMessage()).isEqualTo("An unexpected error occurred");
         assertThat(response.getBody().getTraceId()).isEqualTo("trace-unknown-123");
     }

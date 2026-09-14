@@ -1,5 +1,6 @@
 package com.akash.auditapi.exception;
 
+import com.akash.auditapi.model.ApiOutcomeCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -16,8 +17,6 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
-
-import static com.akash.auditapi.model.ApiOutcomeCode.UNKNOWN_ERROR;
 
 import static com.akash.auditapi.exception.ApiMessages.DATABASE_FAILURE_LOG;
 import static com.akash.auditapi.exception.ApiMessages.DATABASE_QUERY_FAILED;
@@ -49,7 +48,7 @@ public class GlobalExceptionHandler {
                         fieldError.getDefaultMessage() == null
                                 ? INVALID_VALUE : fieldError.getDefaultMessage()))
                 .toList();
-        return error(HttpStatus.BAD_REQUEST, ApiErrorCode.VALIDATION_FAILED,
+        return error(HttpStatus.BAD_REQUEST, ApiOutcomeCode.VALIDATION_FAILED,
                 VALIDATION_FAILED, details);
     }
 
@@ -58,30 +57,30 @@ public class GlobalExceptionHandler {
             MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class,
             IllegalArgumentException.class, ArithmeticException.class})
     ResponseEntity<ApiError> invalidRequest() {
-        return error(HttpStatus.BAD_REQUEST, ApiErrorCode.INVALID_REQUEST,
+        return error(HttpStatus.BAD_REQUEST, ApiOutcomeCode.INVALID_REQUEST,
                 INVALID_REQUEST);
     }
 
     @ExceptionHandler(DataAccessException.class)
     ResponseEntity<ApiError> databaseError(DataAccessException exception, HttpServletRequest request) {
         LOGGER.error(DATABASE_FAILURE_LOG, request.getRequestURI(), exception);
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, ApiErrorCode.DATABASE_ERROR,
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, ApiOutcomeCode.DATABASE_ERROR,
                 DATABASE_QUERY_FAILED);
     }
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpectedError(Exception exception, HttpServletRequest request) {
-        LOGGER.error(UNEXPECTED_FAILURE_LOG, UNKNOWN_ERROR.internalCode(),
+        LOGGER.error(UNEXPECTED_FAILURE_LOG, ApiOutcomeCode.INTERNAL_ERROR.applicationCode(),
                 request.getRequestURI(), exception);
-        return error(HttpStatus.INTERNAL_SERVER_ERROR, ApiErrorCode.INTERNAL_ERROR,
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, ApiOutcomeCode.INTERNAL_ERROR,
                 UNEXPECTED_ERROR);
     }
 
-    private ResponseEntity<ApiError> error(HttpStatus status, ApiErrorCode code, String message) {
+    private ResponseEntity<ApiError> error(HttpStatus status, ApiOutcomeCode code, String message) {
         return error(status, code, message, List.of());
     }
 
-    private ResponseEntity<ApiError> error(HttpStatus status, ApiErrorCode code, String message,
+    private ResponseEntity<ApiError> error(HttpStatus status, ApiOutcomeCode code, String message,
                                            List<ApiFieldError> details) {
         ApiError body = errorFactory.create(status, code, message, details);
         ResponseEntity.BodyBuilder response = ResponseEntity.status(status);

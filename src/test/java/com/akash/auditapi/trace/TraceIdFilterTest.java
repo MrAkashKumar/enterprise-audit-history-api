@@ -16,7 +16,7 @@ class TraceIdFilterTest {
 
     @Test
     void propagatesValidTraceIdToMdcAndResponseThenClearsThreadContext() throws Exception {
-        var request = new MockHttpServletRequest("GET", "/api/v1/PMC_POSITION_BALANCE");
+        var request = new MockHttpServletRequest("GET", "/api/v1/POSITION_BALANCE");
         request.addHeader(HEADER_NAME, "client-trace-123");
         var response = new MockHttpServletResponse();
         var traceSeenInsideChain = new AtomicReference<String>();
@@ -31,7 +31,7 @@ class TraceIdFilterTest {
 
     @Test
     void replacesUnsafeTraceIdInsideMdcWithoutAddingSuccessHeader() throws Exception {
-        var request = new MockHttpServletRequest("GET", "/api/v1/PMC_POSITION_BALANCE");
+        var request = new MockHttpServletRequest("GET", "/api/v1/POSITION_BALANCE");
         request.addHeader(HEADER_NAME, "invalid trace id\nforged-log-entry");
         var response = new MockHttpServletResponse();
         var traceSeenInsideChain = new AtomicReference<String>();

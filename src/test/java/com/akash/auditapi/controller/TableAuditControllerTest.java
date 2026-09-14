@@ -1,6 +1,6 @@
 package com.akash.auditapi.controller;
 
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.ApiErrorFactory;
 import com.akash.auditapi.exception.GlobalExceptionHandler;
 import com.akash.auditapi.exception.InvalidRequestException;
@@ -31,10 +31,11 @@ class TableAuditControllerTest {
     void returnsAllTableLabelsWithoutPagination() throws Exception {
         mockMvc.perform(get("/api/v1/allTable"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.code").value("2000"))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.message").value("Request completed successfully"))
+                .andExpect(jsonPath("$.httpStatus").doesNotExist())
                 .andExpect(jsonPath("$.data.tableLabels[0]").value("Holiday Calendar"))
                 .andExpect(jsonPath("$.data.tableLabels[1]").value("Loco Singapore"))
                 .andExpect(jsonPath("$.data.tableLabels[2]").value("Position Balance"))
@@ -46,14 +47,15 @@ class TableAuditControllerTest {
     void returnsResponseEntityWithPaginationDefaults() throws Exception {
         SearchResponse response = new SearchResponse(
                 0, 10, 0, 0, 0, false, false, List.of());
-        when(service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10)).thenReturn(response);
+        when(service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10)).thenReturn(response);
 
-        mockMvc.perform(get("/api/v1/PMC_POSITION_BALANCE"))
+        mockMvc.perform(get("/api/v1/POSITION_BALANCE"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.code").value("2000"))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.message").value("Request completed successfully"))
+                .andExpect(jsonPath("$.httpStatus").doesNotExist())
                 .andExpect(jsonPath("$.traceId").doesNotExist())
                 .andExpect(jsonPath("$.path").doesNotExist())
                 .andExpect(jsonPath("$.data.sourceTable").doesNotExist())
@@ -64,22 +66,25 @@ class TableAuditControllerTest {
     @Test
     void returnsStableErrorContract() throws Exception {
         when(service.sourceWithAuditHistory("BAD", 0, 10)).thenThrow(
-                new InvalidRequestException(ApiErrorCode.INVALID_TABLE_NAME, "invalid table"));
+                new InvalidRequestException(ApiOutcomeCode.INVALID_TABLE_NAME, "invalid table"));
 
         mockMvc.perform(get("/api/v1/BAD"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_TABLE_NAME"))
+                .andExpect(jsonPath("$.status").value("INVALID_TABLE_NAME"))
+                .andExpect(jsonPath("$.code").value("4000"))
                 .andExpect(jsonPath("$.message").value("invalid table"))
                 .andExpect(jsonPath("$.data").value(nullValue()))
+                .andExpect(jsonPath("$.httpStatus").doesNotExist())
                 .andExpect(jsonPath("$.path").doesNotExist())
                 .andExpect(jsonPath("$.details").isEmpty());
     }
 
     @Test
     void returnsSafeErrorForInvalidParameterType() throws Exception {
-        mockMvc.perform(get("/api/v1/PMC_POSITION_BALANCE").param("pageNo", "not-a-number"))
+        mockMvc.perform(get("/api/v1/POSITION_BALANCE").param("pageNo", "not-a-number"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.status").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.code").value("4005"))
                 .andExpect(jsonPath("$.message").value("Invalid request"))
                 .andExpect(jsonPath("$.details").isEmpty());
     }

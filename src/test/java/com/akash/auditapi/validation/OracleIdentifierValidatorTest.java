@@ -1,6 +1,6 @@
 package com.akash.auditapi.validation;
 
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import org.junit.jupiter.api.Test;
 
@@ -12,8 +12,8 @@ class OracleIdentifierValidatorTest {
 
     @Test
     void trimsAndNormalizesValidIdentifier() {
-        assertThat(validator.normalizeTableName(" pmc_position_balance "))
-                .isEqualTo("PMC_POSITION_BALANCE");
+        assertThat(validator.normalizeTableName(" position_balance "))
+                .isEqualTo("POSITION_BALANCE");
     }
 
     @Test
@@ -21,7 +21,7 @@ class OracleIdentifierValidatorTest {
         for (String value : new String[]{null, "SCHEMA.TABLE", "\"MixedCase\"", "T;DELETE FROM X"}) {
             assertThatThrownBy(() -> validator.normalizeTableName(value))
                     .isInstanceOfSatisfying(InvalidRequestException.class,
-                            exception -> assertThat(exception.getCode()).isEqualTo(ApiErrorCode.INVALID_TABLE_NAME));
+                            exception -> assertThat(exception.getCode()).isEqualTo(ApiOutcomeCode.INVALID_TABLE_NAME));
         }
     }
 }

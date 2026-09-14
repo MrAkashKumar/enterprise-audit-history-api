@@ -19,8 +19,8 @@ service, controller, or fixed-column DTO for each table.
 
 Example pair:
 
-- Source: `PMC_LOCO_SINGAPORE`
-- Audit: `PMC_LOCO_SINGAPORE_AUD`
+- Source: `LOCO_SINGAPORE`
+- Audit: `LOCO_SINGAPORE_AUD`
 
 Oracle source tables, audit tables, row triggers, revisions, and production data already exist.
 The application must not create, alter, seed, or write to audit tables. Do not add dummy runtime
@@ -183,7 +183,7 @@ State rules:
 
 Every controller returns endpoint data only under `data`. Implement shared response metadata once:
 
-- `BaseApiResponse<C>`: `timestamp`, `status`, `code`, `message`
+- `BaseApiResponse`: `timestamp`, application `status`, four-digit `code`, `message`
 - `ApiResponse<T>`: successful `data`
 - `ApiError`: `data=null` and error-only fields
 
@@ -192,8 +192,8 @@ Success example:
 ```json
 {
   "timestamp": "2026-09-14T00:15:30.412Z",
-  "status": 200,
-  "code": "SUCCESS",
+  "status": "SUCCESS",
+  "code": "2000",
   "message": "Request completed successfully",
   "data": {
     "pageNo": 0,
@@ -256,19 +256,19 @@ selected from Oracle. A deleted row keeps the same shape but uses
 `originalRecordPresent=false`, `originalData=null`, and retains the complete history including its
 `operation=DELETE` revision.
 
-Success responses must not contain `sourceTable`, `auditTable`, `traceId`, `path`, or
-`processingTimeMs`. Source and audit names remain internal query metadata. Use HTTP/body status
-`200` for successful reads, updates, and deletes and `201` for creates. Internally map success to
-support code `1000`, but expose client code `SUCCESS`.
+Success responses must not contain `sourceTable`, `auditTable`, `traceId`, `path`, `httpStatus`, or
+`processingTimeMs`. Source and audit names remain internal query metadata. Use HTTP `200` for
+successful reads, updates, and deletes and HTTP `201` for creates. Return application
+`status=SUCCESS` and `code=2000` in the body.
 
 ## 7. Table-list endpoint
 
 Create an `AuditableTable` enum containing only approved original table names and labels. Derive
 audit names; do not store them in the enum. Initial mappings:
 
-- `PMC_HOLIDAY_CALENDAR` -> `Holiday Calendar`
-- `PMC_LOCO_SINGAPORE` -> `Loco Singapore`
-- `PMC_POSITION_BALANCE` -> `Position Balance`
+- `HOLIDAY_CALENDAR` -> `Holiday Calendar`
+- `LOCO_SINGAPORE` -> `Loco Singapore`
+- `POSITION_BALANCE` -> `Position Balance`
 
 Implement in the same controller:
 
@@ -326,7 +326,7 @@ serialization cost, and latency because one ID can expand into many revisions.
 
 Use centralized `@RestControllerAdvice`. Every error contains:
 
-- `timestamp`, HTTP `status`, stable `code`, safe `message`
+- `timestamp`, application `status`, stable four-digit `code`, safe `message`
 - `data: null`
 - `traceId`
 - standard HTTP `error`
@@ -337,8 +337,8 @@ Example:
 ```json
 {
   "timestamp": "2026-09-14T00:15:30.412Z",
-  "status": 500,
-  "code": "DATABASE_ERROR",
+  "status": "DATABASE_ERROR",
+  "code": "5001",
   "message": "The database query could not be completed",
   "data": null,
   "traceId": "9f2c50d9bf5c71e5ad43b17ad84cb267",
@@ -350,10 +350,14 @@ Example:
 Return validation problems together in `details`. Never expose request paths, SQL, Oracle details,
 credentials, stack traces, or internal class names.
 
-Support these stable categories: invalid identifier, page number, page size, request, validation,
-audit-table input, unauthorized API key, disallowed table, missing table pair, missing required
-column, missing Holiday, database failure, and unexpected failure. The unexpected fallback uses
-client code `INTERNAL_ERROR` and internal support code `0000` in logs.
+Use one `ApiOutcomeCode` enum for success and every error; do not create separate success/error code
+enums. Each enum value is the JSON `status` and owns its four-digit JSON application `code`; the
+status must identify the exact result represented by the message. Use `SUCCESS=2000`; reserve
+`REDIRECTION=3000`; use client-error codes `INVALID_TABLE_NAME=4000`, `INVALID_PAGE_NO=4001`, `INVALID_PAGE_SIZE=4002`,
+`AUDIT_TABLE_NOT_ACCEPTED=4003`, `VALIDATION_FAILED=4004`, `INVALID_REQUEST=4005`,
+`UNAUTHORIZED=4006`, `TABLE_NOT_ALLOWED=4007`, `TABLE_PAIR_NOT_FOUND=4008`,
+`MISSING_REQUIRED_COLUMN=4009`, `HOLIDAY_NOT_FOUND=4010`; and server-error codes
+`INTERNAL_ERROR=5000`, `DATABASE_ERROR=5001`. Never repeat the numeric HTTP status in JSON.
 
 Generate trace IDs from at least 128 bits with `SecureRandom`, not UUID, encoded as lowercase hex.
 Put the value in MDC, include it in error logs, return it in the error JSON and `X-Trace-Id` header,

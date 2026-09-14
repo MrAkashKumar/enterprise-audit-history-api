@@ -3,7 +3,7 @@ package com.akash.auditapi.resolver;
 import com.akash.auditapi.config.AuditApiProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
 import com.akash.auditapi.exception.AuditTableNotFoundException;
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import com.akash.auditapi.exception.MissingAuditColumnException;
 import com.akash.auditapi.exception.TableNotAllowedException;
@@ -36,7 +36,7 @@ public class TableDescriptorResolver {
     public TableDescriptor resolve(String requestedTable) {
         String source = identifierValidator.normalizeTableName(requestedTable);
         if (source.endsWith(properties.auditSuffix())) {
-            throw new InvalidRequestException(ApiErrorCode.AUDIT_TABLE_NOT_ACCEPTED,
+            throw new InvalidRequestException(ApiOutcomeCode.AUDIT_TABLE_NOT_ACCEPTED,
                     SOURCE_TABLE_REQUIRED);
         }
         if (!properties.allowedTables().isEmpty() && !properties.allowedTables().contains(source)) {

@@ -1,7 +1,7 @@
 package com.akash.auditapi.security;
 
 import com.akash.auditapi.exception.ApiError;
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.ApiErrorFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -50,7 +50,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        ApiError error = errorFactory.create(HttpStatus.UNAUTHORIZED, ApiErrorCode.UNAUTHORIZED,
+        ApiError error = errorFactory.create(HttpStatus.UNAUTHORIZED, ApiOutcomeCode.UNAUTHORIZED,
                 VALID_API_KEY_REQUIRED);
         if (error.getTraceId() != null) {
             response.setHeader(HEADER_NAME, error.getTraceId());

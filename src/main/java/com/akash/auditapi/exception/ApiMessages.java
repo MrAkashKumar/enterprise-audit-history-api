@@ -10,7 +10,7 @@ public final class ApiMessages {
     public static final String VALID_API_KEY_REQUIRED = "A valid API key is required";
     public static final String DATABASE_FAILURE_LOG = "Database failure while serving {}";
     public static final String UNEXPECTED_FAILURE_LOG =
-            "Unexpected failure [internalCode={}] while serving {}";
+            "Unexpected failure [applicationCode={}] while serving {}";
     public static final String NULL_ENTITY_ID = "Database row contains a null entity ID";
     public static final String LOB_TOO_LARGE = "LOB value is too large for a JSON response";
     public static final String SIMPLE_ORACLE_IDENTIFIER_REQUIRED =

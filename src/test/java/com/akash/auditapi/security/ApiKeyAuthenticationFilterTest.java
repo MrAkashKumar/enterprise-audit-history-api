@@ -27,7 +27,8 @@ class ApiKeyAuthenticationFilterTest {
         MockHttpServletResponse rejectedResponse = new MockHttpServletResponse();
         filter.doFilter(request(), rejectedResponse, new MockFilterChain());
         assertThat(rejectedResponse.getStatus()).isEqualTo(401);
-        assertThat(rejectedResponse.getContentAsString()).contains("UNAUTHORIZED");
+        assertThat(rejectedResponse.getContentAsString()).contains("\"status\":\"UNAUTHORIZED\"");
+        assertThat(rejectedResponse.getContentAsString()).contains("\"code\":\"4006\"");
         assertThat(rejectedResponse.getContentAsString()).contains("\"data\":null");
         assertThat(rejectedResponse.getContentAsString()).doesNotContain("\"path\"");
     }
@@ -77,7 +78,7 @@ class ApiKeyAuthenticationFilterTest {
     }
 
     private MockHttpServletRequest request() {
-        return new MockHttpServletRequest("GET", "/api/v1/PMC_POSITION_BALANCE");
+        return new MockHttpServletRequest("GET", "/api/v1/POSITION_BALANCE");
     }
 
     private static ObjectMapper configuredObjectMapper() {

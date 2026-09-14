@@ -21,8 +21,8 @@ Every controller response uses one JSON envelope. Domain content is returned onl
 | Field | Type | Success | Error | Meaning |
 |---|---|---:|---:|---|
 | `timestamp` | ISO-8601 string | Yes | Yes | Time the response was created |
-| `status` | integer | Yes | Yes | HTTP status code repeated in the body |
-| `code` | string | `SUCCESS` | Specific error code | Stable client-facing result code |
+| `status` | string | `SUCCESS` | Specific failure status | Outcome matching the response message |
+| `code` | four-digit string | `2000` | `4xxx`/`5xxx` | Stable application response code |
 | `message` | string | Yes | Yes | Safe user-readable result message |
 | `data` | object/null | Payload | `null` | Endpoint-specific response DTO |
 | `traceId` | string | No | Yes | Error correlation ID also present in logs/header |
@@ -34,8 +34,8 @@ Success envelope:
 ```json
 {
   "timestamp": "<ISO-8601 timestamp>",
-  "status": 200,
-  "code": "SUCCESS",
+  "status": "SUCCESS",
+  "code": "2000",
   "message": "Request completed successfully",
   "data": {}
 }
@@ -46,8 +46,8 @@ Error envelope:
 ```json
 {
   "timestamp": "<ISO-8601 timestamp>",
-  "status": 500,
-  "code": "INTERNAL_ERROR",
+  "status": "INTERNAL_ERROR",
+  "code": "5000",
   "message": "An unexpected error occurred",
   "data": null,
   "traceId": "<error correlation ID>",
@@ -56,11 +56,11 @@ Error envelope:
 }
 ```
 
-`path`, SQL, credentials, stack traces, and Oracle messages are never returned. `SUCCESS` maps to
-internal support code `1000`. The unknown-exception fallback maps to support code `0000` in logs.
-Clients must branch on the readable `code`, not internal support codes.
+`path`, the numeric HTTP status, SQL, credentials, stack traces, and Oracle messages are never
+returned. One `ApiOutcomeCode` enum defines each specific outcome and application code. Clients
+branch on `status` and `code`; the protocol status remains available from the HTTP response.
 
-The implementation uses `BaseApiResponse<C>` for shared metadata, `ApiResponse<T>` for successful
+The implementation uses `BaseApiResponse` for shared metadata, `ApiResponse<T>` for successful
 payloads, and `ApiError` for failures. This avoids metadata duplication while keeping the envelope
 flat and consistent.
 
@@ -138,7 +138,7 @@ GET and DELETE have no request body. POST and PUT accept `HolidayRequest`:
 
 Responses never expose the JPA entity directly. POST/PUT return `HolidayResponse` under `data`.
 The paginated GET returns `PageResponse<HolidayResponse>`. DELETE returns the success envelope with
-`data: null`. POST uses HTTP/body status `201`; other successful operations use `200`.
+`data: null`. POST uses HTTP `201`; other successful operations use HTTP `200`.
 
 ## 5. Audit behavior and data semantics
 
@@ -190,8 +190,8 @@ return `originalRecordPresent=false` and `originalData=null`.
 ## 6. Table registration and Oracle access
 
 Supported original tables are registered centrally in `AuditableTable` and in the configured
-allowlist. Current configured examples are `PMC_HOLIDAY_CALENDAR`, `PMC_LOCO_SINGAPORE`, and
-`PMC_POSITION_BALANCE`; their audit names are derived rather than stored in the enum.
+allowlist. Current configured examples are `HOLIDAY_CALENDAR`, `LOCO_SINGAPORE`, and
+`POSITION_BALANCE`; their audit names are derived rather than stored in the enum.
 
 The runtime Oracle account must be least-privileged and read-only for generic audit queries.
 The production application does not create, modify, or seed database tables or rows. There is no
@@ -203,20 +203,26 @@ must monitor invalid/disabled triggers and periodically reconcile source/audit c
 
 ## 7. Validation and error behavior
 
-| Condition | HTTP | Client code |
-|---|---:|---|
-| Invalid identifier | 400 | `INVALID_TABLE_NAME` |
-| Invalid pagination | 400 | `INVALID_PAGE_NUMBER` / `INVALID_PAGE_SIZE` |
-| Invalid request body | 400 | `VALIDATION_FAILED` |
-| Malformed request or parameter type | 400 | `INVALID_REQUEST` |
-| Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` |
-| API key missing/invalid | 401 | `UNAUTHORIZED` |
-| Table not allowlisted | 404 | `TABLE_NOT_ALLOWED` |
-| Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` |
-| Holiday missing | 404 | `HOLIDAY_NOT_FOUND` |
-| Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` |
-| Oracle/JDBC failure | 500 | `DATABASE_ERROR` |
-| Unknown exception | 500 | `INTERNAL_ERROR` |
+| Condition | HTTP | JSON status | Application code |
+|---|---:|---|---:|
+| Success | 200/201 | `SUCCESS` | `2000` |
+| Redirect category (reserved) | 3xx | `REDIRECTION` | `3000` |
+| Invalid identifier | 400 | `INVALID_TABLE_NAME` | `4000` |
+| Invalid page number | 400 | `INVALID_PAGE_NO` | `4001` |
+| Invalid page size | 400 | `INVALID_PAGE_SIZE` | `4002` |
+| Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` |
+| Invalid request body | 400 | `VALIDATION_FAILED` | `4004` |
+| Malformed request or parameter type | 400 | `INVALID_REQUEST` | `4005` |
+| API key missing/invalid | 401 | `UNAUTHORIZED` | `4006` |
+| Table not allowlisted | 404 | `TABLE_NOT_ALLOWED` | `4007` |
+| Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
+| Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
+| Holiday missing | 404 | `HOLIDAY_NOT_FOUND` | `4010` |
+| Unexpected exception | 500 | `INTERNAL_ERROR` | `5000` |
+| Oracle/JDBC failure | 500 | `DATABASE_ERROR` | `5001` |
+
+Application code ranges are `2xxx` success, `3xxx` redirection, `4xxx` client errors, and `5xxx`
+server errors. The numeric HTTP status is never duplicated in the body.
 
 All validation failures are returned together in `details`. Internal failures return safe generic
 messages; full exceptions are logged server-side with the trace ID.
@@ -297,7 +303,7 @@ when another source table or revision scheme is introduced.
 
 ## 12. Acceptance criteria
 
-- Every success uses `timestamp`, matching HTTP `status`, `code=SUCCESS`, a clear `message`, and
+- Every success uses `timestamp`, `status=SUCCESS`, `code=2000`, a clear `message`, and
   endpoint-specific content only under `data`.
 - Every failure uses the same core metadata, `data=null`, a safe error code/message, `traceId`,
   HTTP reason, and a non-null `details` array.

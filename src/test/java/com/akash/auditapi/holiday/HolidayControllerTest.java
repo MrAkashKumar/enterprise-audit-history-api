@@ -1,5 +1,6 @@
 package com.akash.auditapi.holiday;
 
+import com.akash.auditapi.model.ApiOutcomeCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -28,7 +29,8 @@ class HolidayControllerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getCode().name()).isEqualTo("SUCCESS");
+        assertThat(response.getBody().getStatus()).isEqualTo(ApiOutcomeCode.SUCCESS);
+        assertThat(response.getBody().getCode()).isEqualTo("2000");
         assertThat(response.getBody().getData().id()).isEqualTo(holiday.getId());
     }
 

@@ -22,12 +22,12 @@ class TableMetadataDaoTest {
     @Test
     void returnsExistingTablesAndLoadsAllColumnsInOneQuery() throws Exception {
         when(jdbcTemplate.queryForList(anyString(), eq(String.class),
-                eq("PMC_POSITION_BALANCE"), eq("PMC_POSITION_BALANCE_AUD")))
-                .thenReturn(List.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
+                eq("POSITION_BALANCE"), eq("POSITION_BALANCE_AUD")))
+                .thenReturn(List.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
         ResultSet resultSet = mock(ResultSet.class);
         when(resultSet.getString("TABLE_NAME"))
-                .thenReturn("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD",
-                        "PMC_POSITION_BALANCE_AUD");
+                .thenReturn("POSITION_BALANCE", "POSITION_BALANCE_AUD",
+                        "POSITION_BALANCE_AUD");
         when(resultSet.getString("COLUMN_NAME")).thenReturn("ID", "REV", "REVTYPE");
         doAnswer(invocation -> {
             RowCallbackHandler handler = invocation.getArgument(1);
@@ -36,12 +36,12 @@ class TableMetadataDaoTest {
             handler.processRow(resultSet);
             return null;
         }).when(jdbcTemplate).query(anyString(), any(RowCallbackHandler.class),
-                eq("PMC_POSITION_BALANCE"), eq("PMC_POSITION_BALANCE_AUD"));
+                eq("POSITION_BALANCE"), eq("POSITION_BALANCE_AUD"));
 
-        assertThat(dao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .containsExactlyInAnyOrder("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD");
-        assertThat(dao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
-                .containsEntry("PMC_POSITION_BALANCE", java.util.Set.of("ID"))
-                .containsEntry("PMC_POSITION_BALANCE_AUD", java.util.Set.of("REV", "REVTYPE"));
+        assertThat(dao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .containsExactlyInAnyOrder("POSITION_BALANCE", "POSITION_BALANCE_AUD");
+        assertThat(dao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
+                .containsEntry("POSITION_BALANCE", java.util.Set.of("ID"))
+                .containsEntry("POSITION_BALANCE_AUD", java.util.Set.of("REV", "REVTYPE"));
     }
 }

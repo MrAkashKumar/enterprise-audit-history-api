@@ -1,7 +1,7 @@
 package com.akash.auditapi.validation;
 
 import com.akash.auditapi.config.AuditApiProperties;
-import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.model.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import org.springframework.stereotype.Component;
 
@@ -18,11 +18,11 @@ public class PaginationValidator {
 
     public void validate(int pageNo, int pageSize) {
         if (pageNo < 0) {
-            throw new InvalidRequestException(ApiErrorCode.INVALID_PAGE_NUMBER,
+            throw new InvalidRequestException(ApiOutcomeCode.INVALID_PAGE_NO,
                     INVALID_PAGE_NUMBER);
         }
         if (pageSize < 1 || pageSize > properties.maxPageSize()) {
-            throw new InvalidRequestException(ApiErrorCode.INVALID_PAGE_SIZE,
+            throw new InvalidRequestException(ApiOutcomeCode.INVALID_PAGE_SIZE,
                     invalidPageSize(properties.maxPageSize()));
         }
     }

@@ -9,9 +9,9 @@ import java.util.Map;
 import static com.akash.auditapi.exception.ApiMessages.duplicateAuditableTableName;
 
 public enum AuditableTable {
-    HOLIDAY_CALENDAR("PMC_HOLIDAY_CALENDAR", "Holiday Calendar"),
-    LOCO_SINGAPORE("PMC_LOCO_SINGAPORE", "Loco Singapore"),
-    POSITION_BALANCE("PMC_POSITION_BALANCE", "Position Balance");
+    HOLIDAY_CALENDAR("HOLIDAY_CALENDAR", "Holiday Calendar"),
+    LOCO_SINGAPORE("LOCO_SINGAPORE", "Loco Singapore"),
+    POSITION_BALANCE("POSITION_BALANCE", "Position Balance");
 
     private static final List<String> LABEL_NAMES = Arrays.stream(values())
             .map(AuditableTable::labelName)

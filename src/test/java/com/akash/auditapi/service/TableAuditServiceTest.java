@@ -16,8 +16,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TableAuditServiceTest {
@@ -25,7 +27,8 @@ class TableAuditServiceTest {
     private final TableAuditDao auditDao = mock(TableAuditDao.class);
     private final PaginationValidator paginationValidator = mock(PaginationValidator.class);
     private final TableAuditService service = new TableAuditService(tableResolver, auditDao,
-            paginationValidator, new EnversRevisionOperationResolver());
+            paginationValidator,
+            new AuditHistoryAssembler(new EnversRevisionOperationResolver()));
 
     @Test void groupsCurrentRowAndHistoryByIdIncludingDeletedRows() {
         TableDescriptor table = new TableDescriptor(
@@ -89,7 +92,8 @@ class TableAuditServiceTest {
 
         SearchResponse response = service.sourceWithAuditHistory("Loco Singapore", 0, 10);
 
-        assertThat(response.getSourceTable()).isEqualTo("PMC_LOCO_SINGAPORE");
+        assertThat(response.getRows()).isEmpty();
+        verify(tableResolver).resolve("PMC_LOCO_SINGAPORE");
     }
 
     @Test void keepsGlobalEnversRevisionSequenceIndependentForEachEntity() {
@@ -115,6 +119,51 @@ class TableAuditServiceTest {
         assertThat(response.getRows().get(1).auditHistory())
                 .extracting(AuditRevisionResponse::sequenceNumber, AuditRevisionResponse::revision)
                 .containsExactly(tuple(1, 9071));
+    }
+
+    @Test void handlesSourceOnlyRowsAndUnknownRevisionTypes() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        List<Object> ids = List.of(1, 2);
+        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
+        when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
+                Map.of("ID", 1, "STATUS", "CURRENT")));
+        when(auditDao.findAuditRows(table, ids)).thenReturn(List.of(
+                Map.of("ID", 2, "REV", 50, "REVTYPE", 99)));
+
+        SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10);
+
+        assertThat(response.getRows().get(0).changeSummary()).isEqualTo(ChangeSummary.EMPTY);
+        assertThat(response.getRows().get(0).auditHistory()).isEmpty();
+        assertThat(response.getRows().get(1).changeSummary().unknownCount()).isEqualTo(1);
+        assertThat(response.getRows().get(1).auditHistory().getFirst().operation())
+                .isEqualTo(RevisionOperation.UNKNOWN);
+    }
+
+    @Test void calculatesPreviousAndNextForMiddlePages() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+        when(auditDao.findIdPage(table, 1, 10)).thenReturn(new AuditIdPage(List.of(), 30));
+
+        SearchResponse response = service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 1, 10);
+
+        assertThat(response.isHasPrevious()).isTrue();
+        assertThat(response.isHasNext()).isTrue();
+    }
+
+    @Test void rejectsDatabaseRowsWithoutTheConfiguredEntityId() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        List<Object> ids = List.of(1);
+        when(tableResolver.resolve("PMC_POSITION_BALANCE")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 1));
+        when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(Map.of("STATUS", "INVALID")));
+
+        assertThatThrownBy(() -> service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Database row contains a null entity ID");
     }
 
 }

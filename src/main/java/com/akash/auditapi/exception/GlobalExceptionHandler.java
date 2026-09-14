@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import java.time.Instant;
 import java.util.List;
 
 import static com.akash.auditapi.model.ApiOutcomeCode.UNKNOWN_ERROR;
@@ -27,12 +26,16 @@ import static com.akash.auditapi.exception.ApiMessages.INVALID_VALUE;
 import static com.akash.auditapi.exception.ApiMessages.UNEXPECTED_ERROR;
 import static com.akash.auditapi.exception.ApiMessages.UNEXPECTED_FAILURE_LOG;
 import static com.akash.auditapi.exception.ApiMessages.VALIDATION_FAILED;
-import static com.akash.auditapi.trace.TraceContext.currentTraceId;
 import static com.akash.auditapi.trace.TraceContext.HEADER_NAME;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final ApiErrorFactory errorFactory;
+
+    public GlobalExceptionHandler(ApiErrorFactory errorFactory) {
+        this.errorFactory = errorFactory;
+    }
 
     @ExceptionHandler(AuditApiException.class)
     ResponseEntity<ApiError> auditApiError(AuditApiException exception) {
@@ -80,12 +83,10 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiError> error(HttpStatus status, ApiErrorCode code, String message,
                                            List<ApiFieldError> details) {
-        String traceId = currentTraceId();
-        ApiError body = new ApiError(Instant.now(), traceId, status.value(), status.getReasonPhrase(), code,
-                message, details);
+        ApiError body = errorFactory.create(status, code, message, details);
         ResponseEntity.BodyBuilder response = ResponseEntity.status(status);
-        if (traceId != null) {
-            response.header(HEADER_NAME, traceId);
+        if (body.getTraceId() != null) {
+            response.header(HEADER_NAME, body.getTraceId());
         }
         return response.body(body);
     }

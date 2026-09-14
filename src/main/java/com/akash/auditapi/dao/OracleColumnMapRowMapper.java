@@ -17,7 +17,7 @@ import static com.akash.auditapi.exception.ApiMessages.LOB_TOO_LARGE;
 public class OracleColumnMapRowMapper extends ColumnMapRowMapper {
     @Override
     protected Object getColumnValue(ResultSet resultSet, int index) throws SQLException {
-        Object value = super.getColumnValue(resultSet, index);
+        Object value = resultSet.getObject(index);
         try {
             if (value instanceof Clob clob) {
                 return clob.getSubString(1, Math.toIntExact(clob.length()));
@@ -31,7 +31,7 @@ public class OracleColumnMapRowMapper extends ColumnMapRowMapper {
             if (value instanceof SQLXML sqlxml) {
                 return sqlxml.getString();
             }
-            return value;
+            return super.getColumnValue(resultSet, index);
         } catch (ArithmeticException exception) {
             throw new DataRetrievalFailureException(LOB_TOO_LARGE, exception);
         }

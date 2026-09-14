@@ -62,6 +62,18 @@ class TableAuditDaoTest {
     }
 
     @Test
+    void returnsZeroForNullCountAndDoesNotCountAnEmptyFirstPage() {
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(null);
+        assertThat(dao.countDistinctIds(table)).isZero();
+
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                eq(0L), eq(10))).thenReturn(List.of());
+        AuditIdPage result = dao.findIdPage(table, 0, 10);
+
+        assertThat(result.totalElements()).isZero();
+    }
+
+    @Test
     void returnsAllSourceAndAuditColumnsAndSkipsEmptyIdQuery() {
         List<Map<String, Object>> rows = List.of(Map.of(
                 "ID", 1002, "REV", 9071, "REVTYPE", 1, "TOTAL_AGGREGATED_QUANTITY", 0));

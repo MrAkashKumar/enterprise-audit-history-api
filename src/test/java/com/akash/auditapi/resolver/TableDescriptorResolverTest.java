@@ -70,6 +70,29 @@ class TableDescriptorResolverTest {
         assertCode("PMC_POSITION_BALANCE", ApiErrorCode.MISSING_REQUIRED_COLUMN);
     }
 
+    @Test
+    void supportsEmptyAllowlistAndDetectsMissingSourceTable() {
+        AuditApiProperties unrestrictedProperties = new AuditApiProperties(
+                "_AUD", "ID", "REV", "REVTYPE", Set.of(), 200);
+        TableDescriptorResolver unrestricted = new TableDescriptorResolver(
+                metadataDao, unrestrictedProperties, new OracleIdentifierValidator());
+        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"));
+        when(metadataDao.findColumnsByTable("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+                .thenReturn(completeColumns());
+
+        assertThat(unrestricted.resolve("PMC_POSITION_BALANCE")).isNotNull();
+
+        TableDescriptorResolver missingSourceResolver = new TableDescriptorResolver(
+                metadataDao, properties, new OracleIdentifierValidator());
+        when(metadataDao.findExistingTables("PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD"))
+                .thenReturn(Set.of("PMC_POSITION_BALANCE_AUD"));
+        assertThatThrownBy(() -> missingSourceResolver.resolve("PMC_POSITION_BALANCE"))
+                .isInstanceOfSatisfying(AuditApiException.class,
+                        exception -> assertThat(exception.getCode())
+                                .isEqualTo(ApiErrorCode.TABLE_PAIR_NOT_FOUND));
+    }
+
     private Map<String, Set<String>> completeColumns() {
         return Map.of(
                 "PMC_POSITION_BALANCE", Set.of("ID"),

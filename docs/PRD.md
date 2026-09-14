@@ -84,8 +84,6 @@ This GET endpoint has no request body.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `sourceTable` | string | Resolved original table |
-| `auditTable` | string | Resolved `<TABLE>_AUD` table |
 | `pageNo`, `pageSize` | integer | Applied pagination |
 | `numberOfElements` | integer | IDs returned on this page |
 | `totalElements`, `totalPages` | integer | Distinct-ID totals |
@@ -107,7 +105,8 @@ The row contract is state-independent:
 
 The service must preserve database `null` values and source column order in map-backed snapshots.
 It must not replace full row data with a reduced, table-specific projection. The success response
-must not contain `traceId`, `path`, or `processingTimeMs`.
+must not contain `sourceTable`, `auditTable`, `traceId`, `path`, or `processingTimeMs`. Source and
+audit table names remain internal query metadata.
 
 ### 4.2 Supported table labels
 
@@ -263,6 +262,22 @@ load-test percentiles.
 Secrets must come from environment or an enterprise secret manager and must never be committed.
 Production JPA schema generation remains disabled.
 
+### 10.1 Maintainable component design
+
+- Controllers own HTTP mapping and common response wrapping only.
+- `TableAuditService` owns validation, transaction boundaries, pagination, and orchestration.
+- `AuditHistoryAssembler` owns row indexing, audit grouping, revision sequencing, operation
+  resolution, and change-summary construction.
+- DAO and JPA repository types exclusively own persistence access.
+- `RevisionOperationResolver` provides the operation-mapping Strategy and is injected by
+  interface.
+- `ApiErrorFactory` is the single Factory for error envelopes used by exception and security
+  handling.
+- Components use constructor injection and must not depend on controller or transport details.
+
+These boundaries implement Single Responsibility and Dependency Inversion and must be preserved
+when another source table or revision scheme is introduced.
+
 ## 11. Testing and dummy-data policy
 
 - Runtime resources must contain no INSERT/UPDATE/DELETE seed script or application data loader.
@@ -272,6 +287,13 @@ Production JPA schema generation remains disabled.
   error-only tracing, validation details, and absence of `path`.
 - Service/DAO tests verify grouping, deleted IDs, revision ordering, full column preservation,
   pagination, SQL bindings, and metadata checks.
+- A clean build targeting Java 21 must compile both `src/main` and `src/test`; `mvn clean verify`
+  is the authoritative verification command. Maven may run on a compatible newer JDK while the
+  compiler continues to use `--release 21`.
+- Offline verification may use `mvn -o clean verify` only after all required dependencies are in
+  the local Maven repository.
+- IDE-only errors require Java 21 project/module SDK configuration and a Maven-model reload; build
+  tool warnings must not be reported as application compilation errors.
 
 ## 12. Acceptance criteria
 
@@ -289,6 +311,8 @@ Production JPA schema generation remains disabled.
 - Invalid identifiers cannot alter generated SQL.
 - Repeated requests for an approved table do not repeat successful metadata discovery.
 - The Maven verification build and all package-aligned tests pass.
+- JaCoCo reports and enforces 100% line and branch coverage for production logic; only the
+  framework-delegating Spring Boot launcher is excluded.
 
 ## 13. Constraints and future extensions
 

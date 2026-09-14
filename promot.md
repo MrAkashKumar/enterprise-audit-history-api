@@ -45,6 +45,20 @@ table names and columns vary at runtime. Never try to bind a table name as a SQL
 Use clear packages for configuration, controller, service, DAO, model, resolver, validation,
 exception, trace, security, and the typed Holiday example. Keep tests in matching packages.
 
+Apply maintainable boundaries and SOLID principles:
+
+- Keep controllers limited to HTTP mapping and response wrapping.
+- Keep `TableAuditService` limited to validation, transaction/pagination orchestration, metadata
+  resolution, and DAO coordination.
+- Put source indexing, audit grouping, revision sequencing, and summary construction in a focused
+  `AuditHistoryAssembler`.
+- Hide database access behind DAO/JPA repository boundaries.
+- Inject a `RevisionOperationResolver` Strategy instead of branching on revision schemes in the
+  service.
+- Use one `ApiErrorFactory` for exception-handler and security-filter error envelopes.
+- Use constructor injection and keep dependencies directed toward interfaces or focused
+  collaborators.
+
 ## 3. Oracle audit model
 
 Document and support the enterprise **row-level trigger + audit table** approach:
@@ -118,8 +132,6 @@ Centralize paths, defaults, messages, SQL templates, and limits instead of dupli
 
 `SearchResponse` contains only:
 
-- `sourceTable`
-- `auditTable`
 - `pageNo`
 - `pageSize`
 - `numberOfElements`
@@ -184,8 +196,6 @@ Success example:
   "code": "SUCCESS",
   "message": "Request completed successfully",
   "data": {
-    "sourceTable": "PMC_LOCO_SINGAPORE",
-    "auditTable": "PMC_LOCO_SINGAPORE_AUD",
     "pageNo": 0,
     "pageSize": 10,
     "numberOfElements": 1,
@@ -246,7 +256,8 @@ selected from Oracle. A deleted row keeps the same shape but uses
 `originalRecordPresent=false`, `originalData=null`, and retains the complete history including its
 `operation=DELETE` revision.
 
-Success responses must not contain `traceId`, `path`, or `processingTimeMs`. Use HTTP/body status
+Success responses must not contain `sourceTable`, `auditTable`, `traceId`, `path`, or
+`processingTimeMs`. Source and audit names remain internal query metadata. Use HTTP/body status
 `200` for successful reads, updates, and deletes and `201` for creates. Internally map success to
 support code `1000`, but expose client code `SUCCESS`.
 
@@ -382,7 +393,7 @@ runtime seed data or create production Oracle tables. Production schema generati
 - Fix Sonar findings rather than suppressing them without justification.
 - Remove unused imports, dead abstractions, duplicated strings, dummy data, and `.DS_Store` files.
 - Keep `.DS_Store` ignored.
-- Update `README.md`, `docs/PRD.md`, and this `PROMOT.md` whenever the contract changes.
+- Update `README.md`, `docs/PRD.md`, and this `promot.md` whenever the contract changes.
 
 ## 13. Tests and verification
 
@@ -404,7 +415,17 @@ Run:
 mvn clean verify
 ```
 
+The source and runtime baseline is Java 21. Maven may run on a compatible newer JDK, but compiler
+output must target `--release 21`. Check `java -version` and `mvn -version` before diagnosing
+compilation failures. Use `mvn -o clean verify` only when dependencies are already cached. If
+Maven passes but an IDE is red, configure its project language level for Java 21, reload `pom.xml`,
+and rebuild. Do not treat Maven/JDK dependency warnings as Java source compilation errors.
+
+Configure JaCoCo in Maven to generate `target/site/jacoco/index.html` and fail `verify` unless both
+line and branch coverage are 100%. Exclude only the Spring Boot launcher containing the
+framework-delegating `main` method; do not exclude business, controller, service, DAO, validation,
+security, tracing, exception, or DTO code to inflate the result.
+
 The task is complete only when compilation succeeds, every test passes, documentation matches the
 implemented response, no runtime dummy data exists, no `.DS_Store` remains, and the existing public
 API contract is preserved unless a change was explicitly required.
-

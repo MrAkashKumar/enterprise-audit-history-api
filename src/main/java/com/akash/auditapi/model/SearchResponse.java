@@ -3,8 +3,6 @@ package com.akash.auditapi.model;
 import java.util.List;
 
 public final class SearchResponse {
-    private final String sourceTable;
-    private final String auditTable;
     private final int pageNo;
     private final int pageSize;
     private final int numberOfElements;
@@ -14,11 +12,9 @@ public final class SearchResponse {
     private final boolean hasNext;
     private final List<AuditedRowResponse> rows;
 
-    public SearchResponse(String sourceTable, String auditTable, int pageNo, int pageSize,
-                          int numberOfElements, long totalElements, long totalPages,
+    public SearchResponse(int pageNo, int pageSize, int numberOfElements,
+                          long totalElements, long totalPages,
                           boolean hasPrevious, boolean hasNext, List<AuditedRowResponse> rows) {
-        this.sourceTable = sourceTable;
-        this.auditTable = auditTable;
         this.pageNo = pageNo;
         this.pageSize = pageSize;
         this.numberOfElements = numberOfElements;
@@ -29,8 +25,6 @@ public final class SearchResponse {
         this.rows = List.copyOf(rows);
     }
 
-    public String getSourceTable() { return sourceTable; }
-    public String getAuditTable() { return auditTable; }
     public int getPageNo() { return pageNo; }
     public int getPageSize() { return pageSize; }
     public int getNumberOfElements() { return numberOfElements; }

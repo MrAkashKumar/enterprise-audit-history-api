@@ -2,6 +2,7 @@ package com.akash.auditapi.security;
 
 import com.akash.auditapi.exception.ApiError;
 import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.exception.ApiErrorFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,22 +16,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Instant;
-import java.util.List;
 
 import static com.akash.auditapi.config.ApiPaths.V1_PREFIX;
 import static com.akash.auditapi.exception.ApiMessages.VALID_API_KEY_REQUIRED;
-import static com.akash.auditapi.trace.TraceContext.currentTraceId;
 import static com.akash.auditapi.trace.TraceContext.HEADER_NAME;
 
 @Component
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyProperties properties;
     private final ObjectMapper objectMapper;
+    private final ApiErrorFactory errorFactory;
 
-    public ApiKeyAuthenticationFilter(ApiKeyProperties properties, ObjectMapper objectMapper) {
+    public ApiKeyAuthenticationFilter(ApiKeyProperties properties, ObjectMapper objectMapper,
+                                      ApiErrorFactory errorFactory) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.errorFactory = errorFactory;
     }
 
     @Override
@@ -49,13 +50,11 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        String traceId = currentTraceId();
-        if (traceId != null) {
-            response.setHeader(HEADER_NAME, traceId);
+        ApiError error = errorFactory.create(HttpStatus.UNAUTHORIZED, ApiErrorCode.UNAUTHORIZED,
+                VALID_API_KEY_REQUIRED);
+        if (error.getTraceId() != null) {
+            response.setHeader(HEADER_NAME, error.getTraceId());
         }
-        ApiError error = new ApiError(Instant.now(), traceId, HttpStatus.UNAUTHORIZED.value(),
-                HttpStatus.UNAUTHORIZED.getReasonPhrase(), ApiErrorCode.UNAUTHORIZED,
-                VALID_API_KEY_REQUIRED, List.of());
         objectMapper.writeValue(response.getOutputStream(), error);
     }
 

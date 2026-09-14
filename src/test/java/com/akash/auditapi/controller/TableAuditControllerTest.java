@@ -1,6 +1,7 @@
 package com.akash.auditapi.controller;
 
 import com.akash.auditapi.exception.ApiErrorCode;
+import com.akash.auditapi.exception.ApiErrorFactory;
 import com.akash.auditapi.exception.GlobalExceptionHandler;
 import com.akash.auditapi.exception.InvalidRequestException;
 import com.akash.auditapi.model.SearchResponse;
@@ -23,7 +24,7 @@ class TableAuditControllerTest {
     private final TableAuditService service = mock(TableAuditService.class);
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(new TableAuditController(service))
-            .setControllerAdvice(new GlobalExceptionHandler())
+            .setControllerAdvice(new GlobalExceptionHandler(new ApiErrorFactory()))
             .build();
 
     @Test
@@ -44,8 +45,7 @@ class TableAuditControllerTest {
     @Test
     void returnsResponseEntityWithPaginationDefaults() throws Exception {
         SearchResponse response = new SearchResponse(
-                "PMC_POSITION_BALANCE", "PMC_POSITION_BALANCE_AUD", 0, 10,
-                0, 0, 0, false, false, List.of());
+                0, 10, 0, 0, 0, false, false, List.of());
         when(service.sourceWithAuditHistory("PMC_POSITION_BALANCE", 0, 10)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/PMC_POSITION_BALANCE"))
@@ -56,8 +56,8 @@ class TableAuditControllerTest {
                 .andExpect(jsonPath("$.message").value("Request completed successfully"))
                 .andExpect(jsonPath("$.traceId").doesNotExist())
                 .andExpect(jsonPath("$.path").doesNotExist())
-                .andExpect(jsonPath("$.data.sourceTable").value("PMC_POSITION_BALANCE"))
-                .andExpect(jsonPath("$.data.auditTable").value("PMC_POSITION_BALANCE_AUD"))
+                .andExpect(jsonPath("$.data.sourceTable").doesNotExist())
+                .andExpect(jsonPath("$.data.auditTable").doesNotExist())
                 .andExpect(jsonPath("$.data.rows").isArray());
     }
 

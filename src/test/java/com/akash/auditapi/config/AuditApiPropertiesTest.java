@@ -28,4 +28,16 @@ class AuditApiPropertiesTest {
                 "_AUD", "ID", "REV", "REVTYPE", Set.of(), 1001))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void acceptsNullAllowlistAndBlankValuesAsDefaults() {
+        AuditApiProperties properties = new AuditApiProperties(
+                " ", " ", " ", " ", null, 10);
+
+        assertThat(properties.allowedTables()).isEmpty();
+        assertThat(properties.auditSuffix()).isEqualTo("_AUD");
+        assertThat(properties.idColumn()).isEqualTo("ID");
+        assertThat(properties.auditOrderColumn()).isEqualTo("REV");
+        assertThat(properties.revisionTypeColumn()).isEqualTo("REVTYPE");
+    }
 }

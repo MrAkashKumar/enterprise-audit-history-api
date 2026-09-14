@@ -79,10 +79,30 @@ src/main/java/com/akash/auditapi
 ├── model        API envelopes and audit response DTOs
 ├── resolver     Table metadata and REVTYPE resolution
 ├── security     Optional API-key filter
-├── service      Audit-history orchestration
+├── service      Audit-history orchestration and response assembly
 ├── trace        Secure trace-ID generation and MDC lifecycle
 └── validation   Pagination and Oracle identifier validation
 ```
+
+## Design and maintainability
+
+The backend keeps responsibilities small and uses constructor injection throughout:
+
+| Component | Responsibility |
+|---|---|
+| `TableAuditController` | HTTP input/output only; delegates business work |
+| `TableAuditService` | Validates, resolves metadata, coordinates pagination and DAO calls |
+| `AuditHistoryAssembler` | Groups source/audit rows by ID and builds immutable response DTOs |
+| `TableAuditDao` | Executes parameterized source and audit queries |
+| `TableDescriptorResolver` | Applies the allowlist and verifies table metadata |
+| `RevisionOperationResolver` | Strategy abstraction for mapping `REVTYPE` to an operation |
+| `ApiErrorFactory` | Creates the common error envelope and correlation ID consistently |
+| `GlobalExceptionHandler` | Maps application/framework exceptions to public API errors |
+
+This applies the Single Responsibility and Dependency Inversion principles. The resolver is a
+Strategy, the error creator is a Factory, and database access remains behind DAO/Repository
+boundaries. Add behavior to the responsible component rather than adding table-specific branches
+to the controller or service.
 
 ## Response contract
 
@@ -153,8 +173,6 @@ The `data` object is `SearchResponse`:
 
 | Field | Meaning |
 |---|---|
-| `sourceTable` | Resolved source table |
-| `auditTable` | Derived and verified audit table |
 | `pageNo`, `pageSize` | Applied pagination |
 | `numberOfElements` | Distinct IDs returned on the current page |
 | `totalElements`, `totalPages` | Overall distinct-ID totals |
@@ -185,8 +203,6 @@ Representative populated response (the dynamic column names come from the select
   "code": "SUCCESS",
   "message": "Request completed successfully",
   "data": {
-    "sourceTable": "PMC_LOCO_SINGAPORE",
-    "auditTable": "PMC_LOCO_SINGAPORE_AUD",
     "pageNo": 0,
     "pageSize": 10,
     "numberOfElements": 1,
@@ -256,8 +272,6 @@ Empty result shape:
   "code": "SUCCESS",
   "message": "Request completed successfully",
   "data": {
-    "sourceTable": "PMC_LOCO_SINGAPORE",
-    "auditTable": "PMC_LOCO_SINGAPORE_AUD",
     "pageNo": 0,
     "pageSize": 10,
     "numberOfElements": 0,
@@ -389,10 +403,27 @@ review of existing indexes and real execution plans.
 
 ## Build and test
 
-From the project directory:
+The production baseline is Java 21. Build with JDK 21 or a newer JDK capable of compiling with
+`--release 21`, plus Maven 3.9 or the project-compatible Maven version. Confirm the active
+toolchain before building:
+
+```bash
+java -version
+mvn -version
+```
+
+The Maven output must show compilation with `release 21`. From the project directory, compile
+production and test sources and run every quality gate with:
 
 ```bash
 mvn clean verify
+```
+
+When all dependencies are already present in the local Maven cache, the reproducible offline form
+is:
+
+```bash
+mvn -o clean verify
 ```
 
 Run the packaged service:
@@ -403,7 +434,15 @@ java -jar target/enterprise-audit-history-api-0.0.1-SNAPSHOT.jar
 
 Tests are organized by production package. Controller tests verify JSON contracts, service tests
 verify grouping and history semantics, DAO tests verify SQL behavior, and security/trace tests
-verify error correlation.
+verify error correlation. JaCoCo generates the HTML report at `target/site/jacoco/index.html` and
+fails `mvn verify` unless both line and branch coverage remain at 100%. The Spring Boot launcher is
+excluded because it contains only the framework-delegating `main` method.
+
+If Maven succeeds but an IDE still reports compilation errors, set the Project SDK and language
+level to Java 21, reload the Maven model from `pom.xml`, and rebuild the project. Maven's clean
+build is the authoritative compilation result. Jansi restricted-native-access and Mockito
+self-attachment messages on newer JDK runtimes are dependency compatibility warnings, not Java
+source compilation failures.
 
 ## Database-data policy
 

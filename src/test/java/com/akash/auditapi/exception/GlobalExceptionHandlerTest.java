@@ -9,12 +9,14 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.slf4j.MDC;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static com.akash.auditapi.trace.TraceContext.MDC_KEY;
 
 class GlobalExceptionHandlerTest {
-    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    private final GlobalExceptionHandler handler = new GlobalExceptionHandler(new ApiErrorFactory());
     private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/TABLE");
 
     @Test
@@ -55,6 +57,22 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().getDetails()).containsExactly(
                 new ApiFieldError("name", "must not be blank"),
                 new ApiFieldError("date", "must be in the future"));
+    }
+
+    @Test
+    void substitutesMissingValidationMessagesAndNormalizesNullDetails() {
+        var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
+        bindingResult.addError(new FieldError("request", "name", null));
+        var exception = new MethodArgumentNotValidException(mock(MethodParameter.class), bindingResult);
+
+        var response = handler.bodyValidationError(exception);
+        ApiError directError = new ApiError(Instant.EPOCH, "trace", 400, "Bad Request",
+                ApiErrorCode.INVALID_REQUEST, "Invalid request", null);
+
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getDetails())
+                .containsExactly(new ApiFieldError("name", "Invalid value"));
+        assertThat(directError.getDetails()).isEmpty();
     }
 
     @Test

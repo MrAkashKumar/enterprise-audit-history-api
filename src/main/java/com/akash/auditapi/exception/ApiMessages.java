@@ -7,7 +7,6 @@ public final class ApiMessages {
     public static final String INVALID_REQUEST = "Invalid request";
     public static final String DATABASE_QUERY_FAILED = "The database query could not be completed";
     public static final String UNEXPECTED_ERROR = "An unexpected error occurred";
-    public static final String VALID_API_KEY_REQUIRED = "A valid API key is required";
     public static final String DATABASE_FAILURE_LOG = "Database failure while serving {}";
     public static final String UNEXPECTED_FAILURE_LOG =
             "Unexpected failure [applicationCode={}] while serving {}";
@@ -18,8 +17,6 @@ public final class ApiMessages {
     public static final String SOURCE_TABLE_REQUIRED =
             "Pass the source table name, not the audit table name";
     public static final String INVALID_PAGE_NUMBER = "pageNo must be zero or greater";
-    public static final String API_KEY_CONFIGURATION_REQUIRED =
-            "AUDIT_API_KEY must be configured when API-key security is enabled";
 
     private ApiMessages() {
     }

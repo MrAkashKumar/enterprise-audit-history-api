@@ -9,8 +9,8 @@ The numeric protocol status is returned by HTTP and is not repeated in JSON. Eve
 an outcome-specific `status`, its stable four-digit application `code`, a safe `message`, and
 endpoint content under `data`.
 
-Success responses do not contain `traceId`. Error responses contain `traceId`, `error`, and
-`details`; they never contain `path`, SQL, credentials, stack traces, or Oracle messages.
+Error responses contain `error` and `details`; they never contain `path`, SQL, credentials, stack
+traces, or Oracle messages.
 
 ## 1. List supported tables
 
@@ -265,7 +265,6 @@ Every error uses its exact outcome status and corresponding application code:
 | Audit table used as input | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` | `Pass the source table name, not the audit table name` |
 | Request-body validation | 400 | `VALIDATION_FAILED` | `4004` | `Request validation failed` |
 | Malformed request/type | 400 | `INVALID_REQUEST` | `4005` | `Invalid request` |
-| Missing/invalid API key | 401 | `UNAUTHORIZED` | `4006` | `A valid API key is required` |
 | Table not allowlisted | 404 | `TABLE_NOT_ALLOWED` | `4007` | Identifies the rejected table |
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` | Identifies the missing pair |
 | Required column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` | Identifies the table and column |
@@ -282,7 +281,6 @@ Invalid page example, HTTP `400`:
   "code": "4001",
   "message": "pageNo must be zero or greater",
   "data": null,
-  "traceId": "51157aec132bef70414531a5a7117684",
   "error": "Bad Request",
   "details": []
 }
@@ -297,7 +295,6 @@ Request validation example, HTTP `400`:
   "code": "4004",
   "message": "Request validation failed",
   "data": null,
-  "traceId": "88ea0e1204391320705094e23019dceb",
   "error": "Bad Request",
   "details": [
     {
@@ -321,10 +318,7 @@ Database failure example, HTTP `500`:
   "code": "5001",
   "message": "The database query could not be completed",
   "data": null,
-  "traceId": "967486a44bab204bff56e470ca82fd65",
   "error": "Internal Server Error",
   "details": []
 }
 ```
-
-`traceId` is also returned in the `X-Trace-Id` response header and is included in server logs.

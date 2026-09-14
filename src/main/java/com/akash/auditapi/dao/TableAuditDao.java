@@ -1,6 +1,6 @@
 package com.akash.auditapi.dao;
 
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.TableDescriptor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -24,7 +24,7 @@ public class TableAuditDao {
         this.rowMapper = rowMapper;
     }
 
-    public long countDistinctIds(TableDescriptor table) {
+    private long countDistinctIds(TableDescriptor table) {
         Long count = jdbcTemplate.queryForObject(sqlBuilder.countDistinctIds(table), Long.class);
         return count == null ? 0 : count;
     }

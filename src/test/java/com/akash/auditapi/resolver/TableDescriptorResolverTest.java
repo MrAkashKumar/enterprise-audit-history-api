@@ -2,9 +2,9 @@ package com.akash.auditapi.resolver;
 
 import com.akash.auditapi.config.AuditApiProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
-import com.akash.auditapi.model.ApiOutcomeCode;
+import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.AuditApiException;
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
 import org.junit.jupiter.api.Test;
 

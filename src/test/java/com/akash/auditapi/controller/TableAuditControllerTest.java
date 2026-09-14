@@ -1,10 +1,9 @@
 package com.akash.auditapi.controller;
 
-import com.akash.auditapi.model.ApiOutcomeCode;
-import com.akash.auditapi.exception.ApiErrorFactory;
-import com.akash.auditapi.exception.GlobalExceptionHandler;
+import com.akash.auditapi.enums.ApiOutcomeCode;
+import com.akash.auditapi.exceptionHandlers.GlobalExceptionHandler;
 import com.akash.auditapi.exception.InvalidRequestException;
-import com.akash.auditapi.model.SearchResponse;
+import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.service.TableAuditService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,7 +23,7 @@ class TableAuditControllerTest {
     private final TableAuditService service = mock(TableAuditService.class);
     private final MockMvc mockMvc = MockMvcBuilders
             .standaloneSetup(new TableAuditController(service))
-            .setControllerAdvice(new GlobalExceptionHandler(new ApiErrorFactory()))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
     @Test
@@ -38,8 +37,7 @@ class TableAuditControllerTest {
                 .andExpect(jsonPath("$.httpStatus").doesNotExist())
                 .andExpect(jsonPath("$.data.tableLabels[0]").value("Holiday Calendar"))
                 .andExpect(jsonPath("$.data.tableLabels[1]").value("Loco Singapore"))
-                .andExpect(jsonPath("$.data.tableLabels[2]").value("Position Balance"))
-                .andExpect(jsonPath("$.traceId").doesNotExist());
+                .andExpect(jsonPath("$.data.tableLabels[2]").value("Position Balance"));
         verifyNoInteractions(service);
     }
 
@@ -56,7 +54,6 @@ class TableAuditControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.message").value("Request completed successfully"))
                 .andExpect(jsonPath("$.httpStatus").doesNotExist())
-                .andExpect(jsonPath("$.traceId").doesNotExist())
                 .andExpect(jsonPath("$.path").doesNotExist())
                 .andExpect(jsonPath("$.data.sourceTable").doesNotExist())
                 .andExpect(jsonPath("$.data.auditTable").doesNotExist())

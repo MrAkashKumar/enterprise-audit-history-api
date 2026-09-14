@@ -42,8 +42,9 @@ data.
 JPA and JDBC must coexist. Use JPA for known entities and JDBC for generic audit reads because
 table names and columns vary at runtime. Never try to bind a table name as a SQL parameter.
 
-Use clear packages for configuration, controller, service, DAO, model, resolver, validation,
-exception, trace, security, and the typed Holiday example. Keep tests in matching packages.
+Use clear packages for configuration, controller, service, DAO, DTOs, entities, enums, resolvers,
+validation, centralized exception handling, and the typed Holiday example. Keep tests in matching
+packages.
 
 Apply maintainable boundaries and SOLID principles:
 
@@ -55,7 +56,7 @@ Apply maintainable boundaries and SOLID principles:
 - Hide database access behind DAO/JPA repository boundaries.
 - Inject a `RevisionOperationResolver` Strategy instead of branching on revision schemes in the
   service.
-- Use one `ApiErrorFactory` for exception-handler and security-filter error envelopes.
+- Create the common error envelope centrally in `GlobalExceptionHandler`.
 - Use constructor injection and keep dependencies directed toward interfaces or focused
   collaborators.
 
@@ -256,7 +257,7 @@ selected from Oracle. A deleted row keeps the same shape but uses
 `originalRecordPresent=false`, `originalData=null`, and retains the complete history including its
 `operation=DELETE` revision.
 
-Success responses must not contain `sourceTable`, `auditTable`, `traceId`, `path`, `httpStatus`, or
+Success responses must not contain `sourceTable`, `auditTable`, `path`, `httpStatus`, or
 `processingTimeMs`. Source and audit names remain internal query metadata. Use HTTP `200` for
 successful reads, updates, and deletes and HTTP `201` for creates. Return application
 `status=SUCCESS` and `code=2000` in the body.
@@ -322,13 +323,12 @@ Centralize `ORACLE_IN_LIMIT = 1000`. Require the configured maximum to be positi
 than the Oracle limit. The lower default bounds response size, heap, connection occupancy,
 serialization cost, and latency because one ID can expand into many revisions.
 
-## 9. Errors and trace IDs
+## 9. Errors
 
 Use centralized `@RestControllerAdvice`. Every error contains:
 
 - `timestamp`, application `status`, stable four-digit `code`, safe `message`
 - `data: null`
-- `traceId`
 - standard HTTP `error`
 - non-null `details` array
 
@@ -341,7 +341,6 @@ Example:
   "code": "5001",
   "message": "The database query could not be completed",
   "data": null,
-  "traceId": "9f2c50d9bf5c71e5ad43b17ad84cb267",
   "error": "Internal Server Error",
   "details": []
 }
@@ -355,24 +354,14 @@ enums. Each enum value is the JSON `status` and owns its four-digit JSON applica
 status must identify the exact result represented by the message. Use `SUCCESS=2000`; reserve
 `REDIRECTION=3000`; use client-error codes `INVALID_TABLE_NAME=4000`, `INVALID_PAGE_NO=4001`, `INVALID_PAGE_SIZE=4002`,
 `AUDIT_TABLE_NOT_ACCEPTED=4003`, `VALIDATION_FAILED=4004`, `INVALID_REQUEST=4005`,
-`UNAUTHORIZED=4006`, `TABLE_NOT_ALLOWED=4007`, `TABLE_PAIR_NOT_FOUND=4008`,
+`TABLE_NOT_ALLOWED=4007`, `TABLE_PAIR_NOT_FOUND=4008`,
 `MISSING_REQUIRED_COLUMN=4009`, `HOLIDAY_NOT_FOUND=4010`; and server-error codes
 `INTERNAL_ERROR=5000`, `DATABASE_ERROR=5001`. Never repeat the numeric HTTP status in JSON.
-
-Generate trace IDs from at least 128 bits with `SecureRandom`, not UUID, encoded as lowercase hex.
-Put the value in MDC, include it in error logs, return it in the error JSON and `X-Trace-Id` header,
-and clear MDC in `finally`. Accept caller trace IDs only after strict safe-format validation.
 
 Avoid nullable dereference warnings in exception handlers. Store nullable results locally and
 check them before accessing their properties.
 
-## 10. Optional API-key protection
-
-Support configurable `X-API-Key` protection for `/api/v1/*`, disabled by default locally. Compare
-keys in constant time. Return the common `401 UNAUTHORIZED` envelope for missing/invalid keys and
-never log either key.
-
-## 11. Typed Holiday JPA example
+## 10. Typed Holiday JPA example
 
 Retain a small typed JPA example proving JPA and JDBC coexist:
 
@@ -388,10 +377,10 @@ runtime seed data or create production Oracle tables. Production schema generati
 
 Generate and maintain one canonical `docs/API_RESPONSE_EXAMPLES.md` containing the request and
 complete success response for every endpoint, plus the full status/code matrix and representative
-validation, authentication, table/schema, database, and unexpected-error responses. Link it from
+validation, table/schema, database, and unexpected-error responses. Link it from
 README and PRD; do not let duplicated examples contradict it.
 
-## 12. Configuration and code quality
+## 11. Configuration and code quality
 
 - Read Oracle secrets from environment variables or an enterprise secret manager.
 - Centralize API paths, defaults, messages, codes, headers, SQL, suffixes, and limits.
@@ -404,18 +393,18 @@ README and PRD; do not let duplicated examples contradict it.
 - Keep `.DS_Store` ignored.
 - Update `README.md`, `docs/PRD.md`, and this `promot.md` whenever the contract changes.
 
-## 13. Tests and verification
+## 12. Tests and verification
 
 Create tests in the matching production packages. Cover:
 
-- Controller success envelopes, table labels, validation, and absence of success trace/time/path
+- Controller success envelopes, table labels, validation, and absence of time/path metadata
 - Service grouping, ordering, summary counts, deleted IDs, empty pages, and full row preservation
 - DAO window-count pagination, out-of-range fallback, bindings, row mapping, and metadata batching
 - Resolver allowlisting, suffix rejection, required columns, and successful descriptor caching
 - `REVTYPE` mapping including unknown values
 - Nullable dynamic columns and immutable response snapshots
-- Error mapping, all validation details, safe messages, and error-only trace IDs
-- `SecureRandom` trace format, MDC cleanup, and optional API-key behavior
+- Error mapping, all validation details, and safe messages
+- Full-context MockMvc coverage proving public endpoints and the common error envelope end to end
 - Typed Holiday controller, service, repository, entity, and validation behavior
 
 Run:
@@ -433,7 +422,7 @@ and rebuild. Do not treat Maven/JDK dependency warnings as Java source compilati
 Configure JaCoCo in Maven to generate `target/site/jacoco/index.html` and fail `verify` unless both
 line and branch coverage are 100%. Exclude only the Spring Boot launcher containing the
 framework-delegating `main` method; do not exclude business, controller, service, DAO, validation,
-security, tracing, exception, or DTO code to inflate the result.
+exception, or DTO code to inflate the result.
 
 The task is complete only when compilation succeeds, every test passes, documentation matches the
 implemented response, no runtime dummy data exists, no `.DS_Store` remains, and the existing public

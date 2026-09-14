@@ -2,11 +2,11 @@ package com.akash.auditapi.service;
 
 import com.akash.auditapi.dao.AuditIdPage;
 import com.akash.auditapi.dao.TableAuditDao;
-import com.akash.auditapi.model.AuditRevisionResponse;
-import com.akash.auditapi.model.ChangeSummary;
-import com.akash.auditapi.model.RevisionOperation;
-import com.akash.auditapi.model.SearchResponse;
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.response.AuditRevisionResponse;
+import com.akash.auditapi.dto.ChangeSummary;
+import com.akash.auditapi.enums.RevisionOperation;
+import com.akash.auditapi.dto.response.SearchResponse;
+import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.resolver.EnversRevisionOperationResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.validation.PaginationValidator;
@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,7 +58,6 @@ class TableAuditServiceTest {
         SearchResponse response = service.sourceWithAuditHistory("HOLIDAY_CALENDAR", 0, 10);
         assertThat(response.getRows()).hasSize(2);
         assertThat(response.getRows().get(0).originalRecordPresent()).isTrue();
-        assertThat(response.getRows().get(0).originalData()).containsEntry("HOLIDAY_NAME", "Current");
         assertThat(response.getRows().get(0).originalData()).isEqualTo(completeSourceRow);
         assertThat(response.getRows().get(0).auditHistory()).hasSize(2);
         assertThat(response.getRows().get(0).auditHistory()).extracting(AuditRevisionResponse::sequenceNumber)
@@ -82,6 +82,8 @@ class TableAuditServiceTest {
         assertThat(response.getRows()).isEmpty();
         assertThat(response.getTotalPages()).isZero();
         assertThat(response.isHasNext()).isFalse();
+        verify(auditDao, never()).findSourceRows(table, List.of());
+        verify(auditDao, never()).findAuditRows(table, List.of());
     }
 
     @Test void acceptsTheSamePublicLabelReturnedByAllTable() {

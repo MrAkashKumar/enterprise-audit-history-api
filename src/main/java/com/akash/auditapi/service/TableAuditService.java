@@ -2,10 +2,10 @@ package com.akash.auditapi.service;
 
 import com.akash.auditapi.dao.AuditIdPage;
 import com.akash.auditapi.dao.TableAuditDao;
-import com.akash.auditapi.model.AuditableTable;
-import com.akash.auditapi.model.AuditedRowResponse;
-import com.akash.auditapi.model.SearchResponse;
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.enums.AuditableTable;
+import com.akash.auditapi.dto.response.AuditedRowResponse;
+import com.akash.auditapi.dto.response.SearchResponse;
+import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.validation.PaginationValidator;
 import org.springframework.stereotype.Service;

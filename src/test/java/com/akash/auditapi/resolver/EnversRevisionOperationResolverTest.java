@@ -1,6 +1,6 @@
 package com.akash.auditapi.resolver;
 
-import com.akash.auditapi.model.RevisionOperation;
+import com.akash.auditapi.enums.RevisionOperation;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

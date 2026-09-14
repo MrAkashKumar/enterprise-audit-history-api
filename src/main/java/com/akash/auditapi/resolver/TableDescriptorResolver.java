@@ -3,11 +3,11 @@ package com.akash.auditapi.resolver;
 import com.akash.auditapi.config.AuditApiProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
 import com.akash.auditapi.exception.AuditTableNotFoundException;
-import com.akash.auditapi.model.ApiOutcomeCode;
+import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import com.akash.auditapi.exception.MissingAuditColumnException;
 import com.akash.auditapi.exception.TableNotAllowedException;
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
 import org.springframework.stereotype.Component;
 

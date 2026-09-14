@@ -15,8 +15,6 @@ The authoritative requirements and acceptance criteria are in [docs/PRD.md](docs
 - Deleted entities retained through audit-only IDs.
 - Zero-based pagination with a configurable safety limit.
 - One consistent success/error response envelope with endpoint content under `data`.
-- Error-only trace IDs generated using `SecureRandom` and added to MDC logs.
-- Optional API-key authentication.
 - JPA for the typed Holiday CRUD example and `JdbcTemplate` for generic dynamic audit reads.
 
 ## Oracle enterprise audit architecture
@@ -71,17 +69,18 @@ database/DBA platform. The Java service never creates triggers and never writes 
 
 ```text
 src/main/java/com/akash/auditapi
-├── config       API paths and validated configuration
-├── controller   Generic audit REST controller
-├── dao          Oracle metadata and dynamic audit queries
-├── exception    Stable errors and global exception handling
-├── holiday      Typed JPA request/entity/response example
-├── model        API envelopes and audit response DTOs
-├── resolver     Table metadata and REVTYPE resolution
-├── security     Optional API-key filter
-├── service      Audit-history orchestration and response assembly
-├── trace        Secure trace-ID generation and MDC lifecycle
-└── validation   Pagination and Oracle identifier validation
+├── config              Validated audit configuration
+├── constants           API paths and shared defaults
+├── controller          Generic audit and typed Holiday controllers
+├── dao                 Oracle JDBC access and Holiday JPA repository
+├── dto                 Internal records plus request/response DTOs
+├── entity              Typed JPA entities
+├── enums               Response codes, table registry, and revision operations
+├── exception           Typed application errors and error DTOs
+├── exceptionHandlers   Central REST exception mapping
+├── resolver            Table metadata and REVTYPE resolution
+├── service             Business orchestration and response assembly
+└── validation          Pagination and Oracle identifier validation
 ```
 
 ## Design and maintainability
@@ -96,13 +95,12 @@ The backend keeps responsibilities small and uses constructor injection througho
 | `TableAuditDao` | Executes parameterized source and audit queries |
 | `TableDescriptorResolver` | Applies the allowlist and verifies table metadata |
 | `RevisionOperationResolver` | Strategy abstraction for mapping `REVTYPE` to an operation |
-| `ApiErrorFactory` | Creates the common error envelope and correlation ID consistently |
-| `GlobalExceptionHandler` | Maps application/framework exceptions to public API errors |
+| `GlobalExceptionHandler` | Creates and maps application/framework errors to the common response |
 
 This applies the Single Responsibility and Dependency Inversion principles. The resolver is a
-Strategy, the error creator is a Factory, and database access remains behind DAO/Repository
-boundaries. Add behavior to the responsible component rather than adding table-specific branches
-to the controller or service.
+Strategy, consistent error construction stays in the global handler, and database access remains
+behind DAO/Repository boundaries. Add behavior to the responsible component rather than adding
+table-specific branches to the controller or service.
 
 ## Response contract
 
@@ -116,7 +114,6 @@ once through `BaseApiResponse` and successful payloads use `ApiResponse<T>`.
 | `code` | `2000` | `4xxx` or `5xxx` | Stable application response code |
 | `message` | Yes | Yes | Safe result description |
 | `data` | Payload/null | `null` | Endpoint-specific response object |
-| `traceId` | No | Yes | Log and error-correlation identifier |
 | `error` | No | Yes | Standard HTTP reason phrase |
 | `details` | No | Yes | Validation failures or an empty array |
 
@@ -133,7 +130,7 @@ once through `BaseApiResponse` and successful payloads use `ApiResponse<T>`.
 ```
 
 POST creation responses use HTTP `201`. Other successful endpoints use HTTP `200`. The numeric
-HTTP status is not repeated in the JSON body. Successful responses do not expose a trace ID.
+HTTP status is not repeated in the JSON body.
 
 ### Error
 
@@ -144,7 +141,6 @@ HTTP status is not repeated in the JSON body. Successful responses do not expose
   "code": "5000",
   "message": "An unexpected error occurred",
   "data": null,
-  "traceId": "<error correlation ID>",
   "error": "Internal Server Error",
   "details": []
 }
@@ -179,8 +175,7 @@ This GET endpoint has no request body.
 Example request without database-row data:
 
 ```bash
-curl --header 'X-API-Key: <configured-key>' \
-  'http://localhost:8080/api/v1/LOCO_SINGAPORE?pageNo=0&pageSize=10'
+curl 'http://localhost:8080/api/v1/LOCO_SINGAPORE?pageNo=0&pageSize=10'
 ```
 
 The `data` object is `SearchResponse`:
@@ -443,8 +438,6 @@ export ORACLE_USERNAME='audit_reader'
 export ORACLE_PASSWORD='<secret-from-vault>'
 export AUDIT_ALLOWED_TABLES='HOLIDAY_CALENDAR,LOCO_SINGAPORE,POSITION_BALANCE'
 export AUDIT_MAX_PAGE_SIZE=200
-export AUDIT_API_KEY_ENABLED=true
-export AUDIT_API_KEY='<secret-from-vault>'
 ```
 
 Important defaults:
@@ -456,20 +449,10 @@ Important defaults:
 | `audit-api.audit-order-column` | `REV` | History ordering column |
 | `audit-api.revision-type-column` | `REVTYPE` | Envers operation code |
 | `audit-api.max-page-size` | `200` | Maximum IDs accepted per request |
-| `audit-api.security.enabled` | `false` | Enables API-key validation |
-| `audit-api.security.header-name` | `X-API-Key` | API-key request header |
 
 The maximum page size cannot exceed Oracle's 1,000-expression `IN` limit. The lower default of
 200 also limits heap usage, connection occupancy, JSON size, and latency when each ID has many
 revisions.
-
-## Trace IDs
-
-- Callers may send `X-Trace-Id` using 1–64 safe characters.
-- Missing or invalid values are replaced by a 128-bit `SecureRandom` hexadecimal ID.
-- The value is added to MDC so every request log can be correlated.
-- MDC is cleared in a `finally` block to prevent thread-pool leakage.
-- `X-Trace-Id` and JSON `traceId` are returned only when an error occurs.
 
 ## Application response codes
 
@@ -483,7 +466,6 @@ revisions.
 | Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` |
 | Invalid request body | 400 | `VALIDATION_FAILED` | `4004` |
 | Invalid parameter type or malformed request | 400 | `INVALID_REQUEST` | `4005` |
-| Missing or invalid API key | 401 | `UNAUTHORIZED` | `4006` |
 | Table not approved | 404 | `TABLE_NOT_ALLOWED` | `4007` |
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
 | Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
@@ -541,9 +523,9 @@ Run the packaged service:
 java -jar target/enterprise-audit-history-api-0.0.1-SNAPSHOT.jar
 ```
 
-Tests are organized by production package. Controller tests verify JSON contracts, service tests
-verify grouping and history semantics, DAO tests verify SQL behavior, and security/trace tests
-verify error correlation. JaCoCo generates the HTML report at `target/site/jacoco/index.html` and
+Tests are organized by production package. Controller and end-to-end tests verify JSON contracts,
+service tests verify grouping and history semantics, and DAO tests verify SQL behavior. JaCoCo
+generates the HTML report at `target/site/jacoco/index.html` and
 fails `mvn verify` unless both line and branch coverage remain at 100%. The Spring Boot launcher is
 excluded because it contains only the framework-delegating `main` method.
 

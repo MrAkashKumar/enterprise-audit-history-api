@@ -1,13 +1,13 @@
 package com.akash.auditapi.validation;
 
 import com.akash.auditapi.exception.InvalidRequestException;
-import com.akash.auditapi.model.ApiOutcomeCode;
+import com.akash.auditapi.enums.ApiOutcomeCode;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-import static com.akash.auditapi.config.AuditDefaults.ORACLE_IDENTIFIER_REGEX;
+import static com.akash.auditapi.constants.AuditDefaults.ORACLE_IDENTIFIER_REGEX;
 import static com.akash.auditapi.exception.ApiMessages.SIMPLE_ORACLE_IDENTIFIER_REQUIRED;
 
 @Component

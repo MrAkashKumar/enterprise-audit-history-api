@@ -1,7 +1,7 @@
 package com.akash.auditapi.validation;
 
 import com.akash.auditapi.config.AuditApiProperties;
-import com.akash.auditapi.model.ApiOutcomeCode;
+import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import org.junit.jupiter.api.Test;
 

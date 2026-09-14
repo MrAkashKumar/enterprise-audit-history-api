@@ -1,6 +1,6 @@
 package com.akash.auditapi.dao;
 
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.TableDescriptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -62,9 +62,11 @@ class TableAuditDaoTest {
     }
 
     @Test
-    void returnsZeroForNullCountAndDoesNotCountAnEmptyFirstPage() {
+    void treatsNullFallbackCountAsZeroAndDoesNotCountAnEmptyFirstPage() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class))).thenReturn(null);
-        assertThat(dao.countDistinctIds(table)).isZero();
+        when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
+                eq(10L), eq(10))).thenReturn(List.of());
+        assertThat(dao.findIdPage(table, 1, 10).totalElements()).isZero();
 
         when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<RowMapper<Object>>any(),
                 eq(0L), eq(10))).thenReturn(List.of());

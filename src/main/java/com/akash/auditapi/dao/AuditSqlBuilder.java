@@ -1,6 +1,6 @@
 package com.akash.auditapi.dao;
 
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.TableDescriptor;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,19 +17,19 @@ public class AuditSqlBuilder {
     private static final String ROWS_SQL =
             "select * from %1$s where %2$s in (:ids) order by %2$s, %3$s";
 
-    public String countDistinctIds(TableDescriptor table) {
+    String countDistinctIds(TableDescriptor table) {
         return COUNT_IDS_SQL.formatted(unionIds(table));
     }
 
-    public String pageIds(TableDescriptor table) {
+    String pageIds(TableDescriptor table) {
         return PAGE_IDS_SQL.formatted(ENTITY_ID_ALIAS, TOTAL_ELEMENTS_ALIAS, unionIds(table));
     }
 
-    public String sourceRows(TableDescriptor table) {
+    String sourceRows(TableDescriptor table) {
         return rows(table.sourceTable(), table.idColumn(), table.idColumn());
     }
 
-    public String auditRows(TableDescriptor table) {
+    String auditRows(TableDescriptor table) {
         return rows(table.auditTable(), table.idColumn(), table.auditOrderColumn());
     }
 

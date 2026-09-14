@@ -1,19 +1,20 @@
 package com.akash.auditapi.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import java.util.Set;
-import java.util.Locale;
-import java.util.stream.Collectors;
-import java.util.regex.Pattern;
 
-import static com.akash.auditapi.config.AuditDefaults.AUDIT_SUFFIX;
-import static com.akash.auditapi.config.AuditDefaults.AUDIT_SUFFIX_REGEX;
-import static com.akash.auditapi.config.AuditDefaults.ID_COLUMN;
-import static com.akash.auditapi.config.AuditDefaults.DEFAULT_MAX_PAGE_SIZE;
-import static com.akash.auditapi.config.AuditDefaults.ORACLE_IDENTIFIER_REGEX;
-import static com.akash.auditapi.config.AuditDefaults.ORACLE_IN_LIMIT;
-import static com.akash.auditapi.config.AuditDefaults.REVISION_COLUMN;
-import static com.akash.auditapi.config.AuditDefaults.REVISION_TYPE_COLUMN;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import static com.akash.auditapi.constants.AuditDefaults.AUDIT_SUFFIX;
+import static com.akash.auditapi.constants.AuditDefaults.AUDIT_SUFFIX_REGEX;
+import static com.akash.auditapi.constants.AuditDefaults.DEFAULT_MAX_PAGE_SIZE;
+import static com.akash.auditapi.constants.AuditDefaults.ID_COLUMN;
+import static com.akash.auditapi.constants.AuditDefaults.ORACLE_IDENTIFIER_REGEX;
+import static com.akash.auditapi.constants.AuditDefaults.ORACLE_IN_LIMIT;
+import static com.akash.auditapi.constants.AuditDefaults.REVISION_COLUMN;
+import static com.akash.auditapi.constants.AuditDefaults.REVISION_TYPE_COLUMN;
 import static com.akash.auditapi.exception.ApiMessages.invalidConfiguration;
 import static com.akash.auditapi.exception.ApiMessages.maximumPageSizeExceeded;
 

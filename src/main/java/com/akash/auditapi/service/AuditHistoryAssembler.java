@@ -1,10 +1,10 @@
 package com.akash.auditapi.service;
 
-import com.akash.auditapi.model.AuditRevisionResponse;
-import com.akash.auditapi.model.AuditedRowResponse;
-import com.akash.auditapi.model.ChangeSummary;
-import com.akash.auditapi.model.RevisionOperation;
-import com.akash.auditapi.model.TableDescriptor;
+import com.akash.auditapi.dto.ChangeSummary;
+import com.akash.auditapi.dto.TableDescriptor;
+import com.akash.auditapi.dto.response.AuditRevisionResponse;
+import com.akash.auditapi.dto.response.AuditedRowResponse;
+import com.akash.auditapi.enums.RevisionOperation;
 import com.akash.auditapi.resolver.RevisionOperationResolver;
 import org.springframework.stereotype.Component;
 

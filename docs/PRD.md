@@ -25,7 +25,6 @@ Every controller response uses one JSON envelope. Domain content is returned onl
 | `code` | four-digit string | `2000` | `4xxx`/`5xxx` | Stable application response code |
 | `message` | string | Yes | Yes | Safe user-readable result message |
 | `data` | object/null | Payload | `null` | Endpoint-specific response DTO |
-| `traceId` | string | No | Yes | Error correlation ID also present in logs/header |
 | `error` | string | No | Yes | Standard HTTP reason phrase |
 | `details` | array | No | Yes | Validation failures; empty for non-validation errors |
 
@@ -50,7 +49,6 @@ Error envelope:
   "code": "5000",
   "message": "An unexpected error occurred",
   "data": null,
-  "traceId": "<error correlation ID>",
   "error": "Internal Server Error",
   "details": []
 }
@@ -109,7 +107,7 @@ The row contract is state-independent:
 
 The service must preserve database `null` values and source column order in map-backed snapshots.
 It must not replace full row data with a reduced, table-specific projection. The success response
-must not contain `sourceTable`, `auditTable`, `traceId`, `path`, or `processingTimeMs`. Source and
+must not contain `sourceTable`, `auditTable`, `path`, or `processingTimeMs`. Source and
 audit table names remain internal query metadata.
 
 ### 4.2 Supported table labels
@@ -217,7 +215,6 @@ must monitor invalid/disabled triggers and periodically reconcile source/audit c
 | Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` |
 | Invalid request body | 400 | `VALIDATION_FAILED` | `4004` |
 | Malformed request or parameter type | 400 | `INVALID_REQUEST` | `4005` |
-| API key missing/invalid | 401 | `UNAUTHORIZED` | `4006` |
 | Table not allowlisted | 404 | `TABLE_NOT_ALLOWED` | `4007` |
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
 | Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
@@ -229,19 +226,13 @@ Application code ranges are `2xxx` success, `3xxx` redirection, `4xxx` client er
 server errors. The numeric HTTP status is never duplicated in the body.
 
 All validation failures are returned together in `details`. Internal failures return safe generic
-messages; full exceptions are logged server-side with the trace ID.
+messages; full exceptions are logged server-side.
 
-## 8. Security and tracing
+## 8. Input and database safety
 
 - Reject table names outside the simple unquoted Oracle identifier grammar.
 - Verify tables and required columns through Oracle metadata before constructing dynamic SQL.
 - Bind row IDs and pagination values; never concatenate caller-controlled identifiers unchecked.
-- Optionally require a configurable `X-API-Key` for `/api/v1/*`.
-- Compare API keys using constant-time byte comparison.
-- Accept only safe caller trace IDs; otherwise generate 128 bits using `SecureRandom` and lowercase
-  hexadecimal encoding.
-- Put the trace ID in MDC for request logs and clear it in a `finally` block.
-- Return `X-Trace-Id` and JSON `traceId` only for errors.
 
 ## 9. Pagination and performance
 
@@ -267,7 +258,6 @@ load-test percentiles.
 | `spring.datasource.password` / `ORACLE_PASSWORD` | Database secret |
 | `audit-api.allowed-tables` / `AUDIT_ALLOWED_TABLES` | Source-table allowlist |
 | `audit-api.max-page-size` / `AUDIT_MAX_PAGE_SIZE` | Maximum accepted page size |
-| API-key settings / `AUDIT_API_KEY_ENABLED`, `AUDIT_API_KEY` | Optional endpoint protection |
 
 Secrets must come from environment or an enterprise secret manager and must never be committed.
 Production JPA schema generation remains disabled.
@@ -281,8 +271,7 @@ Production JPA schema generation remains disabled.
 - DAO and JPA repository types exclusively own persistence access.
 - `RevisionOperationResolver` provides the operation-mapping Strategy and is injected by
   interface.
-- `ApiErrorFactory` is the single Factory for error envelopes used by exception and security
-  handling.
+- `GlobalExceptionHandler` centrally creates the common error envelope.
 - Components use constructor injection and must not depend on controller or transport details.
 
 These boundaries implement Single Responsibility and Dependency Inversion and must be preserved
@@ -294,7 +283,9 @@ when another source table or revision scheme is introduced.
 - Unit tests may use in-memory fixtures, mocks, and H2 records under `src/test` only.
 - Test fixtures must never connect to or mutate the configured production Oracle database.
 - Controller tests verify the common envelope, nested `data`, status/code/message consistency,
-  error-only tracing, validation details, and absence of `path`.
+  validation details, and absence of `path`.
+- Full-context MockMvc tests verify table labels, malformed-request handling, and the complete
+  Holiday create/read/update/delete flow against isolated H2 persistence.
 - Service/DAO tests verify grouping, deleted IDs, revision ordering, full column preservation,
   pagination, SQL bindings, and metadata checks.
 - A clean build targeting Java 21 must compile both `src/main` and `src/test`; `mvn clean verify`
@@ -309,8 +300,8 @@ when another source table or revision scheme is introduced.
 
 - Every success uses `timestamp`, `status=SUCCESS`, `code=2000`, a clear `message`, and
   endpoint-specific content only under `data`.
-- Every failure uses the same core metadata, `data=null`, a safe error code/message, `traceId`,
-  HTTP reason, and a non-null `details` array.
+- Every failure uses the same core metadata, `data=null`, a safe error code/message, HTTP reason,
+  and a non-null `details` array.
 - GET audit requests require no body and validate path/query inputs.
 - POST/PUT requests use validated request DTOs; controllers never expose JPA entities directly.
 - Every source and audit column returned by Oracle is preserved without Java field changes.
@@ -329,5 +320,3 @@ when another source table or revision scheme is introduced.
 - Version 1 supports a single-column `ID`; composite Envers keys require a key-strategy registry.
 - Large histories may require future revision pagination or revision-range filters.
 - Revision timestamp/user metadata can be joined when the exact revision-table schema is supplied.
-- A gateway or OAuth2 resource server should replace shared API keys where enterprise identity is
-  available.

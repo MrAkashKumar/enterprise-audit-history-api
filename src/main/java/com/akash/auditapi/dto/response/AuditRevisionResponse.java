@@ -1,0 +1,27 @@
+package com.akash.auditapi.dto.response;
+
+import com.akash.auditapi.enums.RevisionOperation;
+import com.akash.auditapi.dto.DatabaseRowSnapshot;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.util.Map;
+
+public record AuditRevisionResponse(
+        int sequenceNumber,
+        Object revision,
+        int revisionTypeCode,
+        RevisionOperation operation,
+        @JsonIgnore
+        Map<String, Object> data
+) {
+    public AuditRevisionResponse {
+        data = DatabaseRowSnapshot.copyOf(data);
+    }
+
+    /** Flattens every physical audit-table column into this history JSON object. */
+    @JsonAnyGetter
+    public Map<String, Object> databaseColumns() {
+        return data;
+    }
+}

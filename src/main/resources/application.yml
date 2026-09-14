@@ -21,9 +21,6 @@ spring:
   jackson:
     serialization:
       write-dates-as-timestamps: false
-logging:
-  pattern:
-    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] [traceId=%X{traceId:-none}] %logger{36} - %msg%n"
 audit-api:
   audit-suffix: _AUD
   id-column: ID
@@ -32,7 +29,3 @@ audit-api:
   max-page-size: ${AUDIT_MAX_PAGE_SIZE:200}
   # Comma-separated example: HOLIDAY_CALENDAR,EMPLOYEE,SETTLEMENT_INSTRUCTION
   allowed-tables: ${AUDIT_ALLOWED_TABLES:HOLIDAY_CALENDAR,LOCO_SINGAPORE,POSITION_BALANCE}
-  security:
-    enabled: ${AUDIT_API_KEY_ENABLED:false}
-    header-name: X-API-Key
-    key: ${AUDIT_API_KEY:}

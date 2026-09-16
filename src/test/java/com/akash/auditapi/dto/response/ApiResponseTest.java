@@ -11,7 +11,7 @@ import static org.assertj.core.api.Assertions.tuple;
 class ApiResponseTest {
     @Test
     void wrapsPayloadWithSharedSuccessMetadata() {
-        TableLabelsResponse data = new TableLabelsResponse(List.of("Holiday Calendar"));
+        TableLabelsResponse data = new TableLabelsResponse(List.of("Account-Statement"));
         ApiResponse<TableLabelsResponse> response = ApiResponse.success(
                 data, "Request completed successfully");
 

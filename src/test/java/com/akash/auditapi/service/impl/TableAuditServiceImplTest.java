@@ -1,4 +1,4 @@
-package com.akash.auditapi.service;
+package com.akash.auditapi.service.impl;
 
 import com.akash.auditapi.dao.AuditIdPage;
 import com.akash.auditapi.dao.TableAuditDao;
@@ -7,8 +7,11 @@ import com.akash.auditapi.dto.ChangeSummary;
 import com.akash.auditapi.enums.RevisionOperation;
 import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.dto.TableDescriptor;
+import com.akash.auditapi.resolver.AuditableTableCatalog;
 import com.akash.auditapi.resolver.EnversRevisionOperationResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
+import com.akash.auditapi.service.AuditHistoryAssembler;
+import com.akash.auditapi.service.TableAuditService;
 import com.akash.auditapi.validation.PaginationValidator;
 import org.junit.jupiter.api.Test;
 
@@ -23,17 +26,26 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class TableAuditServiceTest {
+class TableAuditServiceImplTest {
+    private final AuditableTableCatalog tableCatalog = mock(AuditableTableCatalog.class);
     private final TableDescriptorResolver tableResolver = mock(TableDescriptorResolver.class);
     private final TableAuditDao auditDao = mock(TableAuditDao.class);
     private final PaginationValidator paginationValidator = mock(PaginationValidator.class);
-    private final TableAuditService service = new TableAuditService(tableResolver, auditDao,
-            paginationValidator,
+    private final TableAuditService service = new TableAuditServiceImpl(
+            tableCatalog, tableResolver, auditDao, paginationValidator,
             new AuditHistoryAssembler(new EnversRevisionOperationResolver()));
+
+    @Test void returnsDynamicTableLabels() {
+        when(tableCatalog.labels()).thenReturn(List.of("Account-Statement", "Position-Balance"));
+
+        assertThat(service.findAllTableLabels())
+                .containsExactly("Account-Statement", "Position-Balance");
+    }
 
     @Test void groupsCurrentRowAndHistoryByIdIncludingDeletedRows() {
         TableDescriptor table = new TableDescriptor(
                 "HOLIDAY_CALENDAR", "HOLIDAY_CALENDAR_AUD", "ID", "REV", "REVTYPE");
+        when(tableCatalog.resolve("HOLIDAY_CALENDAR")).thenReturn("HOLIDAY_CALENDAR");
         when(tableResolver.resolve("HOLIDAY_CALENDAR")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(1, 2), 2));
         Map<String, Object> completeSourceRow = Map.of(
@@ -74,6 +86,7 @@ class TableAuditServiceTest {
     @Test void returnsEmptyPageWithoutQueryingRows() {
         TableDescriptor table = new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        when(tableCatalog.resolve("POSITION_BALANCE")).thenReturn("POSITION_BALANCE");
         when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(), 0));
 
@@ -89,6 +102,7 @@ class TableAuditServiceTest {
     @Test void acceptsTheSamePublicLabelReturnedByAllTable() {
         TableDescriptor table = new TableDescriptor(
                 "LOCO_SINGAPORE", "LOCO_SINGAPORE_AUD", "ID", "REV", "REVTYPE");
+        when(tableCatalog.resolve("Loco Singapore")).thenReturn("LOCO_SINGAPORE");
         when(tableResolver.resolve("LOCO_SINGAPORE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(List.of(), 0));
 
@@ -102,6 +116,7 @@ class TableAuditServiceTest {
         TableDescriptor table = new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1002, 1003);
+        when(tableCatalog.resolve("POSITION_BALANCE")).thenReturn("POSITION_BALANCE");
         when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
@@ -127,6 +142,7 @@ class TableAuditServiceTest {
         TableDescriptor table = new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1, 2);
+        when(tableCatalog.resolve("POSITION_BALANCE")).thenReturn("POSITION_BALANCE");
         when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
@@ -146,6 +162,7 @@ class TableAuditServiceTest {
     @Test void calculatesPreviousAndNextForMiddlePages() {
         TableDescriptor table = new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        when(tableCatalog.resolve("POSITION_BALANCE")).thenReturn("POSITION_BALANCE");
         when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 1, 10)).thenReturn(new AuditIdPage(List.of(), 30));
 
@@ -159,6 +176,7 @@ class TableAuditServiceTest {
         TableDescriptor table = new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
         List<Object> ids = List.of(1);
+        when(tableCatalog.resolve("POSITION_BALANCE")).thenReturn("POSITION_BALANCE");
         when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
         when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 1));
         when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(Map.of("STATUS", "INVALID")));

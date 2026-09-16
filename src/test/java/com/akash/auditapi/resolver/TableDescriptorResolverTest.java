@@ -21,12 +21,12 @@ import static org.mockito.Mockito.when;
 class TableDescriptorResolverTest {
     private final TableMetadataDao metadataDao = mock(TableMetadataDao.class);
     private final AuditApiProperties properties = new AuditApiProperties(
-            "_AUD", "ID", "REV", "REVTYPE", Set.of("POSITION_BALANCE"), 200);
+            "PMC_", "_AUD", "ID", "REV", "REVTYPE", 200);
     private final TableDescriptorResolver resolver = new TableDescriptorResolver(
             metadataDao, properties, new OracleIdentifierValidator());
 
     @Test
-    void resolvesAllowlistedCompleteEnversTablePair() {
+    void resolvesCompleteEnversTablePair() {
         when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
         when(metadataDao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
@@ -53,9 +53,8 @@ class TableDescriptorResolverTest {
     }
 
     @Test
-    void rejectsAuditNameDisallowedTableMissingPairAndMissingColumn() {
+    void rejectsAuditNameMissingPairAndMissingColumn() {
         assertCode("POSITION_BALANCE_AUD", ApiOutcomeCode.AUDIT_TABLE_NOT_ACCEPTED);
-        assertCode("SECRET", ApiOutcomeCode.TABLE_NOT_ALLOWED);
 
         when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("POSITION_BALANCE"));
@@ -71,17 +70,13 @@ class TableDescriptorResolverTest {
     }
 
     @Test
-    void supportsEmptyAllowlistAndDetectsMissingSourceTable() {
-        AuditApiProperties unrestrictedProperties = new AuditApiProperties(
-                "_AUD", "ID", "REV", "REVTYPE", Set.of(), 200);
-        TableDescriptorResolver unrestricted = new TableDescriptorResolver(
-                metadataDao, unrestrictedProperties, new OracleIdentifierValidator());
+    void detectsMissingSourceTable() {
         when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
         when(metadataDao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(completeColumns());
 
-        assertThat(unrestricted.resolve("POSITION_BALANCE")).isNotNull();
+        assertThat(resolver.resolve("POSITION_BALANCE")).isNotNull();
 
         TableDescriptorResolver missingSourceResolver = new TableDescriptorResolver(
                 metadataDao, properties, new OracleIdentifierValidator());

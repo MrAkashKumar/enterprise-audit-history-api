@@ -6,9 +6,9 @@ import com.akash.auditapi.exception.AuditTableNotFoundException;
 import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import com.akash.auditapi.exception.MissingAuditColumnException;
-import com.akash.auditapi.exception.TableNotAllowedException;
 import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -17,9 +17,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import static com.akash.auditapi.exception.ApiMessages.SOURCE_TABLE_REQUIRED;
+import static com.akash.auditapi.exception.ApiMessages.TABLE_METADATA_VERIFIED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.tablePairNotFound;
 
 @Component
+@Slf4j
 public class TableDescriptorResolver {
     private final TableMetadataDao metadataDao;
     private final AuditApiProperties properties;
@@ -39,10 +41,6 @@ public class TableDescriptorResolver {
             throw new InvalidRequestException(ApiOutcomeCode.AUDIT_TABLE_NOT_ACCEPTED,
                     SOURCE_TABLE_REQUIRED);
         }
-        if (!properties.allowedTables().isEmpty() && !properties.allowedTables().contains(source)) {
-            throw new TableNotAllowedException(source);
-        }
-
         return descriptorCache.computeIfAbsent(source, this::resolveVerifiedDescriptor);
     }
 
@@ -58,8 +56,10 @@ public class TableDescriptorResolver {
         requireColumn(columnsByTable, audit, properties.idColumn());
         requireColumn(columnsByTable, audit, properties.auditOrderColumn());
         requireColumn(columnsByTable, audit, properties.revisionTypeColumn());
-        return new TableDescriptor(source, audit, properties.idColumn(),
+        TableDescriptor descriptor = new TableDescriptor(source, audit, properties.idColumn(),
                 properties.auditOrderColumn(), properties.revisionTypeColumn());
+        log.info(TABLE_METADATA_VERIFIED_LOG, source, audit);
+        return descriptor;
     }
 
     private void requireColumn(Map<String, Set<String>> columnsByTable, String table, String column) {

@@ -30,9 +30,9 @@ HTTP `200`:
   "message": "Request completed successfully",
   "data": {
     "tableLabels": [
-      "Holiday Calendar",
-      "Loco Singapore",
-      "Position Balance"
+      "Account-Statement",
+      "Loco-Singapore",
+      "Position-Balance"
     ]
   }
 }
@@ -41,7 +41,7 @@ HTTP `200`:
 ## 2. Read a source table with audit history
 
 ```http
-GET /api/v1/LOCO_SINGAPORE?pageNo=0&pageSize=10
+GET /api/v1/Loco-Singapore?pageNo=0&pageSize=10
 ```
 
 No request body is accepted. `pageNo` is zero-based; `pageSize` defaults to `10` and must not
@@ -265,7 +265,7 @@ Every error uses its exact outcome status and corresponding application code:
 | Audit table used as input | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` | `Pass the source table name, not the audit table name` |
 | Request-body validation | 400 | `VALIDATION_FAILED` | `4004` | `Request validation failed` |
 | Malformed request/type | 400 | `INVALID_REQUEST` | `4005` | `Invalid request` |
-| Table not allowlisted | 404 | `TABLE_NOT_ALLOWED` | `4007` | Identifies the rejected table |
+| Table not discovered | 404 | `TABLE_NOT_ALLOWED` | `4007` | Identifies the rejected table |
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` | Identifies the missing pair |
 | Required column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` | Identifies the table and column |
 | Holiday not found | 404 | `HOLIDAY_NOT_FOUND` | `4010` | Identifies the holiday ID |

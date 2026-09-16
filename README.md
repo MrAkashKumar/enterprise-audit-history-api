@@ -1,14 +1,15 @@
 # Enterprise Audit History API
 
 Java 21 and Spring Boot service for retrieving an Oracle source row together with its complete
-Hibernate Envers audit history. It supports multiple approved source/audit table pairs through one
+Hibernate Envers audit history. It supports multiple discovered source/audit table pairs through one
 generic endpoint and does not create, update, or seed Oracle audit data.
 
 The authoritative requirements and acceptance criteria are in [docs/PRD.md](docs/PRD.md).
 
 ## Key capabilities
 
-- Generic source and `<TABLE>_AUD` lookup for centrally approved Oracle tables.
+- Dynamic source-table discovery from Oracle `USER_TABLES`; no Java table enum or allowlist.
+- Generic source and `<TABLE>_AUD` lookup for discovered Oracle tables.
 - Full `SELECT *` source and audit snapshots without table-specific response classes.
 - History grouped by entity ID and ordered by Envers revision.
 - `REVTYPE` mapping: `0=INSERT`, `1=UPDATE`, `2=DELETE`, other values=`UNKNOWN`.
@@ -38,7 +39,7 @@ Oracle row-level audit trigger
 Enterprise Audit History API (read only)
 ```
 
-For every approved source table, the Oracle database provides a corresponding `<TABLE>_AUD` table
+For every exposed source table, the Oracle database provides a corresponding `<TABLE>_AUD` table
 and row-level trigger. The trigger writes a full snapshot with the entity `ID`, revision `REV`, and
 operation `REVTYPE`:
 
@@ -75,11 +76,12 @@ src/main/java/com/akash/auditapi
 ├── dao                 Oracle JDBC access and Holiday JPA repository
 ├── dto                 Internal records plus request/response DTOs
 ├── entity              Typed JPA entities
-├── enums               Response codes, table registry, and revision operations
+├── enums               Response codes and revision operations
 ├── exception           Typed application errors and error DTOs
 ├── exceptionHandlers   Central REST exception mapping
 ├── resolver            Table metadata and REVTYPE resolution
-├── service             Business orchestration and response assembly
+├── service             Business contracts and response assembly
+│   └── impl            Service implementations
 └── validation          Pagination and Oracle identifier validation
 ```
 
@@ -90,10 +92,12 @@ The backend keeps responsibilities small and uses constructor injection througho
 | Component | Responsibility |
 |---|---|
 | `TableAuditController` | HTTP input/output only; delegates business work |
-| `TableAuditService` | Validates, resolves metadata, coordinates pagination and DAO calls |
+| `TableAuditService` | Stable business contract used by the controller |
+| `TableAuditServiceImpl` | Validates input and coordinates catalog, metadata, pagination, DAO, and assembly |
 | `AuditHistoryAssembler` | Groups source/audit rows by ID and builds immutable response DTOs |
 | `TableAuditDao` | Executes parameterized source and audit queries |
-| `TableDescriptorResolver` | Applies the allowlist and verifies table metadata |
+| `AuditableTableCatalog` | Discovers source tables and resolves physical names and public labels |
+| `TableDescriptorResolver` | Verifies the source/audit pair and required metadata |
 | `RevisionOperationResolver` | Strategy abstraction for mapping `REVTYPE` to an operation |
 | `GlobalExceptionHandler` | Creates and maps application/framework errors to the common response |
 
@@ -101,6 +105,14 @@ This applies the Single Responsibility and Dependency Inversion principles. The 
 Strategy, consistent error construction stays in the global handler, and database access remains
 behind DAO/Repository boundaries. Add behavior to the responsible component rather than adding
 table-specific branches to the controller or service.
+
+### Audit logging
+
+Audit-flow components use Lombok `@Slf4j` and structured parameterized messages. `INFO` records
+table discovery counts, validated source-table identifiers, pagination inputs, returned row counts,
+total elements, and successful metadata verification. Failures log only the application code and
+exception type. Logs never contain row or audit data, entity IDs, request bodies, SQL, bind values,
+credentials, connection strings, exception messages, or stack traces.
 
 ## Response contract
 
@@ -168,14 +180,14 @@ This GET endpoint has no request body.
 
 | Parameter | Location | Required | Description |
 |---|---|---:|---|
-| `tableName` | Path | Yes | Approved original table name; do not pass the audit table |
+| `tableName` | Path | Yes | Discovered source name or returned label; do not pass the audit table |
 | `pageNo` | Query | No | Zero-based page number; default `0` |
 | `pageSize` | Query | No | Page size; default `10`; maximum is configured |
 
 Example request without database-row data:
 
 ```bash
-curl 'http://localhost:8080/api/v1/LOCO_SINGAPORE?pageNo=0&pageSize=10'
+curl 'http://localhost:8080/api/v1/Loco-Singapore?pageNo=0&pageSize=10'
 ```
 
 The `data` object is `SearchResponse`:
@@ -299,10 +311,12 @@ Empty result shape:
 GET /api/v1/allTable
 ```
 
-This endpoint has no request body and no pagination. It returns `data.tableLabels` from the
-`AuditableTable` enum. Only original table labels are returned; audit names are not returned.
-The same label can be URL-encoded and passed to the detail endpoint, for example
-`GET /api/v1/Loco%20Singapore?pageNo=0&pageSize=10`.
+This endpoint has no request body and no pagination. It discovers source tables from Oracle
+`USER_TABLES` whose names start with the configured prefix (default `PMC_`) and do not end with
+the audit suffix (default `_AUD`). It returns only alphabetically sorted formatted labels; audit
+names are not exposed.
+The same label can be passed directly to the detail endpoint, for example
+`GET /api/v1/Loco-Singapore?pageNo=0&pageSize=10`.
 
 HTTP `200` response:
 
@@ -314,9 +328,9 @@ HTTP `200` response:
   "message": "Request completed successfully",
   "data": {
     "tableLabels": [
-      "Holiday Calendar",
-      "Loco Singapore",
-      "Position Balance"
+      "Account-Statement",
+      "Loco-Singapore",
+      "Position-Balance"
     ]
   }
 }
@@ -416,17 +430,18 @@ Both return this `HolidayResponse` shape under `data`:
 Complete request bodies and every error response are maintained in
 [API_RESPONSE_EXAMPLES.md](docs/API_RESPONSE_EXAMPLES.md).
 
-## Registering another auditable table
+## Exposing another auditable table
 
-1. Add the original Oracle table and user-facing label to `AuditableTable`.
-2. Add the original table name to `AUDIT_ALLOWED_TABLES`.
-3. Confirm the source and audit tables share the configured `ID` column.
+1. Create the source table using the configured prefix, default `PMC_`.
+2. Provide its matching audit table using the configured suffix, default `_AUD`.
+3. Confirm both tables share the configured `ID` column.
 4. Confirm the audit table contains the configured `REV` and `REVTYPE` columns.
-5. Confirm the audit table uses the configured suffix, default `_AUD`.
-6. Grant the runtime read-only account `SELECT` access and metadata visibility.
-7. Validate the real Oracle execution plan and indexes.
+5. Run the API as a least-privileged account in the schema that owns the source/audit tables;
+   `USER_TABLES` intentionally does not discover objects owned by another schema.
+6. Validate the real Oracle execution plan and indexes.
 
-No table-specific generic-audit controller, service, DAO, entity, or response class is needed.
+No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
+next request discovers the table dynamically.
 
 ## Configuration
 
@@ -436,7 +451,7 @@ No table-specific generic-audit controller, service, DAO, entity, or response cl
 export ORACLE_URL='jdbc:oracle:thin:@//host:1521/service'
 export ORACLE_USERNAME='audit_reader'
 export ORACLE_PASSWORD='<secret-from-vault>'
-export AUDIT_ALLOWED_TABLES='HOLIDAY_CALENDAR,LOCO_SINGAPORE,POSITION_BALANCE'
+export AUDIT_SOURCE_TABLE_PREFIX='PMC_'
 export AUDIT_MAX_PAGE_SIZE=200
 ```
 
@@ -444,6 +459,7 @@ Important defaults:
 
 | Setting | Default | Purpose |
 |---|---|---|
+| `audit-api.source-table-prefix` | `PMC_` | Prefix used to discover source tables |
 | `audit-api.audit-suffix` | `_AUD` | Audit table naming convention |
 | `audit-api.id-column` | `ID` | Shared entity identifier |
 | `audit-api.audit-order-column` | `REV` | History ordering column |
@@ -453,6 +469,10 @@ Important defaults:
 The maximum page size cannot exceed Oracle's 1,000-expression `IN` limit. The lower default of
 200 also limits heap usage, connection occupancy, JSON size, and latency when each ID has many
 revisions.
+
+`USER_TABLES` scopes discovery to tables owned by the connected Oracle user. Changing
+`CURRENT_SCHEMA` or granting cross-schema `SELECT` does not make those tables appear in
+`USER_TABLES`; use the owning schema account with only the privileges required by this API.
 
 ## Application response codes
 
@@ -466,7 +486,7 @@ revisions.
 | Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` |
 | Invalid request body | 400 | `VALIDATION_FAILED` | `4004` |
 | Invalid parameter type or malformed request | 400 | `INVALID_REQUEST` | `4005` |
-| Table not approved | 404 | `TABLE_NOT_ALLOWED` | `4007` |
+| Table not discovered | 404 | `TABLE_NOT_ALLOWED` | `4007` |
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
 | Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
 | Holiday missing | 404 | `HOLIDAY_NOT_FOUND` | `4010` |

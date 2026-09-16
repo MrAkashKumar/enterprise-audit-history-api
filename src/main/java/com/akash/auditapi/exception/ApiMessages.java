@@ -7,9 +7,18 @@ public final class ApiMessages {
     public static final String INVALID_REQUEST = "Invalid request";
     public static final String DATABASE_QUERY_FAILED = "The database query could not be completed";
     public static final String UNEXPECTED_ERROR = "An unexpected error occurred";
-    public static final String DATABASE_FAILURE_LOG = "Database failure while serving {}";
+    public static final String AUDIT_TABLE_LIST_LOG =
+            "Audit table discovery completed [tableCount={}]";
+    public static final String AUDIT_SEARCH_STARTED_LOG =
+            "Audit history retrieval started [table={}, pageNo={}, pageSize={}]";
+    public static final String AUDIT_SEARCH_COMPLETED_LOG =
+            "Audit history retrieval completed [table={}, returnedRows={}, totalElements={}]";
+    public static final String TABLE_METADATA_VERIFIED_LOG =
+            "Audit table metadata verified [sourceTable={}, auditTable={}]";
+    public static final String DATABASE_FAILURE_LOG =
+            "Database operation failed [exceptionType={}]";
     public static final String UNEXPECTED_FAILURE_LOG =
-            "Unexpected failure [applicationCode={}] while serving {}";
+            "Unexpected failure [applicationCode={}, exceptionType={}]";
     public static final String NULL_ENTITY_ID = "Database row contains a null entity ID";
     public static final String LOB_TOO_LARGE = "LOB value is too large for a JSON response";
     public static final String SIMPLE_ORACLE_IDENTIFIER_REQUIRED =
@@ -49,7 +58,7 @@ public final class ApiMessages {
         return "Invalid audit-api." + property + ": " + value;
     }
 
-    public static String duplicateAuditableTableName(String publicName) {
-        return "Duplicate auditable table name or label: " + publicName;
+    public static String duplicateTableLabel(String publicName) {
+        return "Duplicate table label: " + publicName;
     }
 }

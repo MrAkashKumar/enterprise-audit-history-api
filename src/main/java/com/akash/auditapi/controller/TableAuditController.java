@@ -3,7 +3,6 @@ package com.akash.auditapi.controller;
 import com.akash.auditapi.dto.response.ApiResponse;
 import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.dto.response.TableLabelsResponse;
-import com.akash.auditapi.enums.AuditableTable;
 import com.akash.auditapi.service.TableAuditService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +27,7 @@ public class TableAuditController {
 
     @GetMapping(ALL_TABLES)
     public ResponseEntity<ApiResponse<TableLabelsResponse>> allTableLabels() {
-        TableLabelsResponse data = new TableLabelsResponse(AuditableTable.labelNames());
+        TableLabelsResponse data = new TableLabelsResponse(tableAuditService.findAllTableLabels());
         return ResponseEntity.ok(ApiResponse.success(data, REQUEST_SUCCESSFUL));
     }
 

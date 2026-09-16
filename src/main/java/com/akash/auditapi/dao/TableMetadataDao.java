@@ -11,6 +11,14 @@ import java.util.Set;
 
 @Repository
 public class TableMetadataDao {
+    private static final String FIND_SOURCE_TABLES_SQL = """
+            select table_name
+            from user_tables
+            where table_name like ? escape '\\'
+              and table_name not like ? escape '\\'
+              and table_name <> ?
+            order by table_name
+            """;
     private static final String FIND_TABLES_SQL =
             "select table_name from user_tables where table_name in (?, ?)";
     private static final String FIND_COLUMNS_SQL =
@@ -20,6 +28,14 @@ public class TableMetadataDao {
 
     public TableMetadataDao(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public List<String> findSourceTables(String sourceTablePrefix, String auditSuffix) {
+        String sourcePattern = escapeLikeLiteral(sourceTablePrefix) + "%";
+        String auditPattern = "%" + escapeLikeLiteral(auditSuffix);
+        return jdbcTemplate.queryForList(
+                FIND_SOURCE_TABLES_SQL, String.class, sourcePattern, auditPattern,
+                sourceTablePrefix);
     }
 
     public Set<String> findExistingTables(String sourceTable, String auditTable) {
@@ -36,5 +52,11 @@ public class TableMetadataDao {
             columnsByTable.computeIfAbsent(table, ignored -> new HashSet<>()).add(column);
         }, sourceTable, auditTable);
         return columnsByTable;
+    }
+
+    private String escapeLikeLiteral(String value) {
+        return value.replace("\\", "\\\\")
+                .replace("_", "\\_")
+                .replace("%", "\\%");
     }
 }

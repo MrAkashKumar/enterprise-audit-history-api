@@ -4,10 +4,8 @@ import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.ApiError;
 import com.akash.auditapi.exception.ApiFieldError;
 import com.akash.auditapi.exception.AuditApiException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,8 +29,8 @@ import static com.akash.auditapi.exception.ApiMessages.UNEXPECTED_FAILURE_LOG;
 import static com.akash.auditapi.exception.ApiMessages.VALIDATION_FAILED;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     @ExceptionHandler(AuditApiException.class)
     ResponseEntity<ApiError> auditApiError(AuditApiException exception) {
         return error(exception.getStatus(), exception.getCode(), exception.getMessage());
@@ -59,16 +57,16 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataAccessException.class)
-    ResponseEntity<ApiError> databaseError(DataAccessException exception, HttpServletRequest request) {
-        LOGGER.error(DATABASE_FAILURE_LOG, request.getRequestURI(), exception);
+    ResponseEntity<ApiError> databaseError(DataAccessException exception) {
+        log.error(DATABASE_FAILURE_LOG, exception.getClass().getSimpleName());
         return error(HttpStatus.INTERNAL_SERVER_ERROR, ApiOutcomeCode.DATABASE_ERROR,
                 DATABASE_QUERY_FAILED);
     }
 
     @ExceptionHandler(Exception.class)
-    ResponseEntity<ApiError> unexpectedError(Exception exception, HttpServletRequest request) {
-        LOGGER.error(UNEXPECTED_FAILURE_LOG, ApiOutcomeCode.INTERNAL_ERROR.applicationCode(),
-                request.getRequestURI(), exception);
+    ResponseEntity<ApiError> unexpectedError(Exception exception) {
+        log.error(UNEXPECTED_FAILURE_LOG, ApiOutcomeCode.INTERNAL_ERROR.applicationCode(),
+                exception.getClass().getSimpleName());
         return error(HttpStatus.INTERNAL_SERVER_ERROR, ApiOutcomeCode.INTERNAL_ERROR,
                 UNEXPECTED_ERROR);
     }

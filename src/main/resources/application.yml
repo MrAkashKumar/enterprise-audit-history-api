@@ -22,10 +22,9 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 audit-api:
+  source-table-prefix: ${AUDIT_SOURCE_TABLE_PREFIX:PMC_}
   audit-suffix: _AUD
   id-column: ID
   audit-order-column: REV
   revision-type-column: REVTYPE
   max-page-size: ${AUDIT_MAX_PAGE_SIZE:200}
-  # Comma-separated example: HOLIDAY_CALENDAR,EMPLOYEE,SETTLEMENT_INSTRUCTION
-  allowed-tables: ${AUDIT_ALLOWED_TABLES:HOLIDAY_CALENDAR,LOCO_SINGAPORE,POSITION_BALANCE}

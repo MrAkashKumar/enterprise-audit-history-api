@@ -6,7 +6,6 @@ import com.akash.auditapi.enums.ApiOutcomeCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.core.MethodParameter;
-import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -16,7 +15,6 @@ import static org.mockito.Mockito.mock;
 
 class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
-    private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/TABLE");
 
     @Test
     void preservesTypedStatusCodeAndMessage() {
@@ -32,7 +30,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void hidesDatabaseImplementationDetails() {
         var response = handler.databaseError(
-                new DataRetrievalFailureException("ORA-00942 private detail"), request);
+                new DataRetrievalFailureException("ORA-00942 private detail"));
 
         assertThat(response.getStatusCode().value()).isEqualTo(500);
         assertThat(response.getBody()).isNotNull();
@@ -71,7 +69,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void convertsUnknownExceptionsToSafeInternalErrors() {
-        var response = handler.unexpectedError(new IllegalStateException("private detail"), request);
+        var response = handler.unexpectedError(new IllegalStateException("private detail"));
 
         assertThat(response.getStatusCode().value()).isEqualTo(500);
         assertThat(response.getBody()).isNotNull();

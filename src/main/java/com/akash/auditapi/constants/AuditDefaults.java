@@ -2,6 +2,7 @@ package com.akash.auditapi.constants;
 
 public final class AuditDefaults {
     public static final String AUDIT_SUFFIX = "_AUD";
+    public static final String SOURCE_TABLE_PREFIX = "PMC_";
     public static final String ID_COLUMN = "ID";
     public static final String REVISION_COLUMN = "REV";
     public static final String REVISION_TYPE_COLUMN = "REVTYPE";

@@ -5,15 +5,13 @@ import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
 import org.junit.jupiter.api.Test;
 
-import java.util.Set;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PaginationValidatorTest {
     private final PaginationValidator validator = new PaginationValidator(new AuditApiProperties(
-            "_AUD", "ID", "REV", "REVTYPE", Set.of(), 200));
+            "PMC_", "_AUD", "ID", "REV", "REVTYPE", 200));
 
     @Test
     void acceptsBoundaryValues() {

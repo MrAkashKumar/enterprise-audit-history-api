@@ -2,9 +2,9 @@
 
 ## 1. Purpose
 
-Provide a reusable Java 21 and Spring Boot REST API that returns the current row from an approved
+Provide a reusable Java 21 and Spring Boot REST API that returns the current row from a discovered
 Oracle source table together with its complete Hibernate Envers history from `<TABLE>_AUD`. The
-generic audit endpoint must support multiple approved tables without table-specific controllers,
+generic audit endpoint must support multiple discovered tables without table-specific controllers,
 entities, repositories, or response models.
 
 ## 2. Users and use cases
@@ -78,7 +78,7 @@ This GET endpoint has no request body.
 
 | Input | Location | Required | Rules |
 |---|---|---:|---|
-| `tableName` | Path | Yes | Original table only; simple Oracle identifier; centrally allowlisted |
+| `tableName` | Path | Yes | Discovered source name or returned label; audit names are rejected |
 | `pageNo` | Query | No | Zero-based; default `0`; must be at least `0` |
 | `pageSize` | Query | No | Default `10`; range `1..audit-api.max-page-size` |
 
@@ -116,8 +116,10 @@ audit table names remain internal query metadata.
 GET /api/v1/allTable
 ```
 
-No request body or pagination is accepted. `data.tableLabels` contains the user-facing labels from
-`AuditableTable`; audit table names are not exposed by this endpoint.
+No request body or pagination is accepted. The API queries Oracle `USER_TABLES`, selects names
+with the configured source prefix (default `PMC_`), excludes the configured audit suffix (default
+`_AUD`), and returns case-insensitively alphabetized labels under `data.tableLabels`. For example,
+`PMC_ACCOUNT_STATEMENT` becomes `Account-Statement`. Audit table names are not exposed.
 
 ### 4.3 Holiday CRUD example
 
@@ -147,7 +149,7 @@ The paginated GET returns `PageResponse<HolidayResponse>`. DELETE returns the su
 ### 5.1 Recommended Oracle architecture
 
 The production auditing model is **row-level trigger + audit table**. Oracle is the system of
-record for audit capture. Each approved source table has:
+record for audit capture. Each exposed source table has:
 
 - A corresponding `<SOURCE_TABLE>_AUD` history table.
 - An `AFTER INSERT OR UPDATE OR DELETE FOR EACH ROW` trigger managed by the database/DBA platform.
@@ -189,17 +191,21 @@ This API does not create triggers, generate revisions, or insert audit records.
 to one entity. `originalData` is the current source row, not the initial snapshot. Deleted entities
 return `originalRecordPresent=false` and `originalData=null`.
 
-## 6. Table registration and Oracle access
+## 6. Dynamic table discovery and Oracle access
 
-Supported original tables are registered centrally in `AuditableTable` and in the configured
-allowlist. Current configured examples are `HOLIDAY_CALENDAR`, `LOCO_SINGAPORE`, and
-`POSITION_BALANCE`; their audit names are derived rather than stored in the enum.
+Supported original tables are discovered from `USER_TABLES` on each catalog request. There is no
+Java enum or configuration allowlist to maintain. Discovery uses the configured prefix and
+excludes names ending in the configured audit suffix. Labels are derived by removing the prefix,
+splitting on underscores, title-casing each segment, and joining with `-`. The audit name is
+always derived internally as `<SOURCE_TABLE><AUDIT_SUFFIX>`.
 
-The runtime Oracle account must be least-privileged and read-only for generic audit queries.
+The runtime Oracle account must be least-privileged for generic audit queries and must connect as
+the schema owner because discovery intentionally uses `USER_TABLES`/`USER_TAB_COLUMNS`. A
+cross-schema `SELECT` grant or `CURRENT_SCHEMA` change does not populate these views.
 The production application does not create, modify, or seed database tables or rows. There is no
 runtime sample-data loader and no dummy-data SQL file.
 
-Before registering a table, the DBA must confirm that its row-level trigger is enabled, valid,
+Before exposing a table, the DBA must confirm that its row-level trigger is enabled, valid,
 tested for all three DML operations, and writes the required full snapshot atomically. Operations
 must monitor invalid/disabled triggers and periodically reconcile source/audit coverage.
 
@@ -215,7 +221,7 @@ must monitor invalid/disabled triggers and periodically reconcile source/audit c
 | Audit table passed directly | 400 | `AUDIT_TABLE_NOT_ACCEPTED` | `4003` |
 | Invalid request body | 400 | `VALIDATION_FAILED` | `4004` |
 | Malformed request or parameter type | 400 | `INVALID_REQUEST` | `4005` |
-| Table not allowlisted | 404 | `TABLE_NOT_ALLOWED` | `4007` |
+| Table not discovered | 404 | `TABLE_NOT_ALLOWED` | `4007` |
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
 | Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
 | Holiday missing | 404 | `HOLIDAY_NOT_FOUND` | `4010` |
@@ -226,13 +232,24 @@ Application code ranges are `2xxx` success, `3xxx` redirection, `4xxx` client er
 server errors. The numeric HTTP status is never duplicated in the body.
 
 All validation failures are returned together in `details`. Internal failures return safe generic
-messages; full exceptions are logged server-side.
+messages. Logs identify the exception type without recording sensitive exception messages or stack
+traces.
 
 ## 8. Input and database safety
 
 - Reject table names outside the simple unquoted Oracle identifier grammar.
+- Discover only tables visible to the connected schema through `USER_TABLES`; do not add an owner
+  predicate or query cross-schema `ALL_TABLES`.
 - Verify tables and required columns through Oracle metadata before constructing dynamic SQL.
 - Bind row IDs and pagination values; never concatenate caller-controlled identifiers unchecked.
+
+### 8.1 Logging safety
+
+Use Lombok `@Slf4j` with parameterized messages at audit discovery, retrieval, and verified-metadata
+boundaries. `INFO` logs may contain validated table identifiers, pagination values, and aggregate
+counts. Error logs contain only stable application codes and exception types. Never log source or
+audit row content, entity IDs, request bodies, SQL, bind values, credentials, JDBC URLs, raw
+exception messages, or stack traces.
 
 ## 9. Pagination and performance
 
@@ -256,7 +273,7 @@ load-test percentiles.
 | `spring.datasource.url` / `ORACLE_URL` | Oracle JDBC URL |
 | `spring.datasource.username` / `ORACLE_USERNAME` | Read-only database user |
 | `spring.datasource.password` / `ORACLE_PASSWORD` | Database secret |
-| `audit-api.allowed-tables` / `AUDIT_ALLOWED_TABLES` | Source-table allowlist |
+| `audit-api.source-table-prefix` / `AUDIT_SOURCE_TABLE_PREFIX` | Source-table discovery prefix |
 | `audit-api.max-page-size` / `AUDIT_MAX_PAGE_SIZE` | Maximum accepted page size |
 
 Secrets must come from environment or an enterprise secret manager and must never be committed.
@@ -265,7 +282,9 @@ Production JPA schema generation remains disabled.
 ### 10.1 Maintainable component design
 
 - Controllers own HTTP mapping and common response wrapping only.
-- `TableAuditService` owns validation, transaction boundaries, pagination, and orchestration.
+- `TableAuditService` defines the business contract; `TableAuditServiceImpl` owns validation,
+  transaction boundaries, pagination, and orchestration.
+- `AuditableTableCatalog` owns dynamic discovery, label formatting, and name resolution.
 - `AuditHistoryAssembler` owns row indexing, audit grouping, revision sequencing, operation
   resolution, and change-summary construction.
 - DAO and JPA repository types exclusively own persistence access.
@@ -310,7 +329,7 @@ when another source table or revision scheme is introduced.
 - Revision history is correctly grouped per ID and ordered independently of global revision reuse.
 - Deleted IDs remain returned with `originalData=null`.
 - Invalid identifiers cannot alter generated SQL.
-- Repeated requests for an approved table do not repeat successful metadata discovery.
+- Repeated requests for a verified table reuse its successful source/audit descriptor metadata.
 - The Maven verification build and all package-aligned tests pass.
 - JaCoCo reports and enforces 100% line and branch coverage for production logic; only the
   framework-delegating Spring Boot launcher is excluded.

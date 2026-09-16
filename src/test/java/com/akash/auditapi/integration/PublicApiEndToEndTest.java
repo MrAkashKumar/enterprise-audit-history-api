@@ -1,10 +1,15 @@
 package com.akash.auditapi.integration;
 
+import com.akash.auditapi.dao.TableMetadataDao;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import java.util.List;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -13,6 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:public-api-e2e;MODE=Oracle;DB_CLOSE_DELAY=-1",
@@ -25,6 +31,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PublicApiEndToEndTest {
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private TableMetadataDao tableMetadataDao;
+
+    @BeforeEach
+    void discoverTables() {
+        when(tableMetadataDao.findSourceTables("PMC_", "_AUD")).thenReturn(List.of(
+                "PMC_ACCOUNT_STATEMENT", "PMC_LOCO_SINGAPORE", "PMC_POSITION_BALANCE"));
+    }
 
     @Test
     void servesTableLabelsThroughTheCompleteSpringContext() throws Exception {

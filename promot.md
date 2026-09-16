@@ -12,15 +12,15 @@ project, create `enterprise-audit-history-api` using Maven.
 
 ## 1. Goal and scope
 
-Create a reusable, read-focused Spring Boot API that returns complete current rows from approved
+Create a reusable, read-focused Spring Boot API that returns complete current rows from dynamically
 Oracle source tables together with complete history from their existing audit tables. One generic
-endpoint must support all centrally registered tables without a separate entity, repository,
+endpoint must support all discovered source tables without a separate entity, repository,
 service, controller, or fixed-column DTO for each table.
 
 Example pair:
 
-- Source: `LOCO_SINGAPORE`
-- Audit: `LOCO_SINGAPORE_AUD`
+- Source: `PMC_LOCO_SINGAPORE`
+- Audit: `PMC_LOCO_SINGAPORE_AUD`
 
 Oracle source tables, audit tables, row triggers, revisions, and production data already exist.
 The application must not create, alter, seed, or write to audit tables. Do not add dummy runtime
@@ -49,8 +49,9 @@ packages.
 Apply maintainable boundaries and SOLID principles:
 
 - Keep controllers limited to HTTP mapping and response wrapping.
-- Keep `TableAuditService` limited to validation, transaction/pagination orchestration, metadata
-  resolution, and DAO coordination.
+- Define `TableAuditService` as the controller-facing contract and keep `TableAuditServiceImpl`
+  limited to validation, transaction/pagination orchestration, metadata resolution, and DAO
+  coordination.
 - Put source indexing, audit grouping, revision sequencing, and summary construction in a focused
   `AuditHistoryAssembler`.
 - Hide database access behind DAO/JPA repository boundaries.
@@ -96,7 +97,7 @@ GET /api/v1/{tableName}?pageNo=0&pageSize=10
 
 The GET request has no body. Requirements:
 
-- Accept only an approved original table name or registered public label.
+- Accept only a dynamically discovered source name or its generated public label.
 - Reject an audit-table name passed directly.
 - Use zero-based `pageNo`, default `0`.
 - Use `pageSize`, default `10`.
@@ -262,14 +263,20 @@ Success responses must not contain `sourceTable`, `auditTable`, `path`, `httpSta
 successful reads, updates, and deletes and HTTP `201` for creates. Return application
 `status=SUCCESS` and `code=2000` in the body.
 
-## 7. Table-list endpoint
+## 7. Dynamic table-list endpoint
 
-Create an `AuditableTable` enum containing only approved original table names and labels. Derive
-audit names; do not store them in the enum. Initial mappings:
+Do not create a hardcoded table enum or external allowlist. Query Oracle `USER_TABLES` for source
+tables beginning with the configurable prefix (default `PMC_`) and exclude tables ending with the
+configurable audit suffix (default `_AUD`). Do not add an owner predicate and do not query
+cross-schema `ALL_TABLES`.
 
-- `HOLIDAY_CALENDAR` -> `Holiday Calendar`
-- `LOCO_SINGAPORE` -> `Loco Singapore`
-- `POSITION_BALANCE` -> `Position Balance`
+Document that `USER_TABLES` discovers only objects owned by the connected Oracle user. The runtime
+account must therefore connect as the owning schema with least privilege; cross-schema grants and
+`CURRENT_SCHEMA` changes do not add objects to `USER_TABLES`.
+
+Convert each source name to a label by removing the prefix, splitting on `_`, lower-casing with
+`Locale.ROOT`, upper-casing the first character of each non-empty segment, and joining segments
+with `-`. Example: `PMC_ACCOUNT_STATEMENT` becomes `Account-Statement`.
 
 Implement in the same controller:
 
@@ -277,17 +284,19 @@ Implement in the same controller:
 GET /api/v1/allTable
 ```
 
-It has no body and no pagination. Return labels under `data.tableLabels` using the common success
-envelope. A URL-encoded returned label must also resolve in the generic audit endpoint.
+It has no body and no pagination. Return labels in case-insensitive alphabetical order under
+`data.tableLabels` using the common success envelope. A returned label, its physical source name,
+and the legacy prefix-stripped underscore
+name must resolve in the generic audit endpoint so existing clients remain compatible.
 
 ## 8. Dynamic SQL, metadata, and performance
 
 Apply all safeguards:
 
-1. Resolve names through `AuditableTable` with a precomputed immutable lookup.
+1. Discover source names through a focused catalog backed by `USER_TABLES`.
 2. Normalize with `Locale.ROOT` and validate a strict simple Oracle identifier.
 3. Reject names ending in the audit suffix.
-4. Require the source in an external allowlist.
+4. Require the source to be present in the current discovery result.
 5. Derive the audit name internally.
 6. Verify both tables and required columns through Oracle metadata.
 7. Cache only successfully verified immutable descriptors.
@@ -316,6 +325,7 @@ Configure limits:
 
 ```yaml
 audit-api:
+  source-table-prefix: ${AUDIT_SOURCE_TABLE_PREFIX:PMC_}
   max-page-size: ${AUDIT_MAX_PAGE_SIZE:200}
 ```
 
@@ -388,6 +398,10 @@ README and PRD; do not let duplicated examples contradict it.
 - Keep dynamic source/audit columns inside maps; do not create per-table response types.
 - Handle integer overflow in pagination offsets.
 - Do not swallow exceptions or leak sensitive implementation details.
+- Use Lombok `@Slf4j` for structured audit-flow logs. Log only validated table identifiers,
+  pagination values, aggregate counts, application codes, and exception types. Never log row data,
+  entity IDs, request bodies, SQL, bind values, credentials, connection strings, raw exception
+  messages, or stack traces.
 - Fix Sonar findings rather than suppressing them without justification.
 - Remove unused imports, dead abstractions, duplicated strings, dummy data, and `.DS_Store` files.
 - Keep `.DS_Store` ignored.
@@ -400,7 +414,8 @@ Create tests in the matching production packages. Cover:
 - Controller success envelopes, table labels, validation, and absence of time/path metadata
 - Service grouping, ordering, summary counts, deleted IDs, empty pages, and full row preservation
 - DAO window-count pagination, out-of-range fallback, bindings, row mapping, and metadata batching
-- Resolver allowlisting, suffix rejection, required columns, and successful descriptor caching
+- Catalog discovery and label resolution, suffix rejection, required columns, and successful
+  descriptor caching
 - `REVTYPE` mapping including unknown values
 - Nullable dynamic columns and immutable response snapshots
 - Error mapping, all validation details, and safe messages

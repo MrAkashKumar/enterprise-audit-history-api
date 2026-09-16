@@ -1,5 +1,9 @@
 package com.akash.auditapi.dto;
 
+/**
+ * Summarizes revision counts and the first/latest revision for one entity.
+ * It is embedded in each audited-row response.
+ */
 public record ChangeSummary(
         long totalRevisions,
         long insertCount,

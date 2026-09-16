@@ -10,6 +10,10 @@ import java.util.regex.Pattern;
 import static com.akash.auditapi.constants.AuditDefaults.ORACLE_IDENTIFIER_REGEX;
 import static com.akash.auditapi.exception.ApiMessages.SIMPLE_ORACLE_IDENTIFIER_REQUIRED;
 
+/**
+ * Normalizes and validates unquoted Oracle table identifiers before dynamic SQL use.
+ * Unsafe or malformed names are rejected with the standard client error.
+ */
 @Component
 public class OracleIdentifierValidator {
     private static final Pattern SIMPLE_IDENTIFIER = Pattern.compile(ORACLE_IDENTIFIER_REGEX);

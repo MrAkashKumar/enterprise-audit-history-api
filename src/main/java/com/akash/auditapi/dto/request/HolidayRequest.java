@@ -6,6 +6,10 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
+/**
+ * Defines validated input for creating or updating a Holiday record.
+ * Controllers accept this DTO instead of binding directly to the JPA entity.
+ */
 public record HolidayRequest(
         @NotNull @Positive Long id,
         @NotNull LocalDate holidayDate,

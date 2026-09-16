@@ -2,6 +2,10 @@ package com.akash.auditapi.dto.response;
 
 import java.util.List;
 
+/**
+ * Contains pagination metadata and rows returned by the generic audit search.
+ * It deliberately omits internal source and audit table names.
+ */
 public final class SearchResponse {
     private final int pageNo;
     private final int pageSize;

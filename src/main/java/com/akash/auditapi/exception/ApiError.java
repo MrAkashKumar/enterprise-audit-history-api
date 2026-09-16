@@ -6,6 +6,10 @@ import com.akash.auditapi.enums.ApiOutcomeCode;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Represents the common error envelope returned by the exception handler.
+ * It adds an HTTP reason phrase and optional validation details to shared metadata.
+ */
 public final class ApiError extends BaseApiResponse {
     private final String error;
     private final List<ApiFieldError> details;

@@ -1,5 +1,9 @@
 package com.akash.auditapi.enums;
 
+/**
+ * Defines stable application statuses and four-digit response codes.
+ * Success and exception envelopes use the same centralized code system.
+ */
 public enum ApiOutcomeCode {
     SUCCESS("2000"),
     REDIRECTION("3000"),

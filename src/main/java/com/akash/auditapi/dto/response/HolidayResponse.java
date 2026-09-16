@@ -5,6 +5,10 @@ import com.akash.auditapi.entity.Holiday;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Exposes the approved Holiday fields returned by CRUD endpoints.
+ * It keeps persistence entities outside the public API contract.
+ */
 public record HolidayResponse(Long id, LocalDate holidayDate, String calendarCode,
                               String calendarName, Long version, String createdBy,
                               LocalDateTime createdOn, String updatedBy, LocalDateTime updatedOn) {

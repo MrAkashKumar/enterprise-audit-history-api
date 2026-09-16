@@ -17,6 +17,10 @@ import static com.akash.auditapi.constants.AuditDefaults.SOURCE_TABLE_PREFIX;
 import static com.akash.auditapi.exception.ApiMessages.invalidConfiguration;
 import static com.akash.auditapi.exception.ApiMessages.maximumPageSizeExceeded;
 
+/**
+ * Holds validated settings for dynamic source and audit-table access.
+ * Spring binds these values from the {@code audit-api} configuration namespace.
+ */
 @ConfigurationProperties(prefix = "audit-api")
 public record AuditApiProperties(String sourceTablePrefix, String auditSuffix, String idColumn,
                                  String auditOrderColumn, String revisionTypeColumn,

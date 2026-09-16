@@ -9,6 +9,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Reads Oracle dictionary metadata for discoverable tables and required columns.
+ * It supports catalog discovery and safe descriptor verification.
+ */
 @Repository
 public class TableMetadataDao {
     private static final String FIND_SOURCE_TABLES_SQL = """

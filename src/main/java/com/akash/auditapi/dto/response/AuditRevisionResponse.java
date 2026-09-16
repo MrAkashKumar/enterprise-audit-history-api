@@ -7,6 +7,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Map;
 
+/**
+ * Represents one ordered audit-table snapshot with its resolved operation.
+ * The data map retains every column returned by Oracle.
+ */
 public record AuditRevisionResponse(
         int sequenceNumber,
         Object revision,

@@ -28,6 +28,10 @@ import static com.akash.auditapi.exception.ApiMessages.UNEXPECTED_ERROR;
 import static com.akash.auditapi.exception.ApiMessages.UNEXPECTED_FAILURE_LOG;
 import static com.akash.auditapi.exception.ApiMessages.VALIDATION_FAILED;
 
+/**
+ * Converts application, validation, database, and unexpected failures into one error contract.
+ * Its logs intentionally omit sensitive exception and request data.
+ */
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {

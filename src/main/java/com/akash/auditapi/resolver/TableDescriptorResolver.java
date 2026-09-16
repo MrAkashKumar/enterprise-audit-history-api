@@ -20,6 +20,10 @@ import static com.akash.auditapi.exception.ApiMessages.SOURCE_TABLE_REQUIRED;
 import static com.akash.auditapi.exception.ApiMessages.TABLE_METADATA_VERIFIED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.tablePairNotFound;
 
+/**
+ * Verifies source/audit table pairs and their mandatory columns against Oracle metadata.
+ * Successfully verified immutable descriptors are cached for later queries.
+ */
 @Component
 @Slf4j
 public class TableDescriptorResolver {

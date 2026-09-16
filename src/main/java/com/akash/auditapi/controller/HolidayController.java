@@ -25,6 +25,10 @@ import static com.akash.auditapi.constants.AuditDefaults.DEFAULT_PAGE_NUMBER_TEX
 import static com.akash.auditapi.constants.AuditDefaults.DEFAULT_PAGE_SIZE_TEXT;
 import static com.akash.auditapi.exception.ApiMessages.REQUEST_SUCCESSFUL;
 
+/**
+ * Exposes the typed Holiday CRUD endpoints backed by Spring Data JPA.
+ * It validates HTTP input and wraps service results in the common API envelope.
+ */
 @RestController
 @RequestMapping(V1 + HOLIDAYS)
 public class HolidayController {

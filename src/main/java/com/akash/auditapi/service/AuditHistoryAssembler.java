@@ -15,7 +15,10 @@ import java.util.Map;
 
 import static com.akash.auditapi.exception.ApiMessages.NULL_ENTITY_ID;
 
-/** Converts database row sets into the stable, entity-grouped audit response model. */
+/**
+ * Converts database rows into stable responses grouped by entity ID.
+ * It orders revisions, resolves operations, and calculates change summaries in one pass.
+ */
 @Component
 public class AuditHistoryAssembler {
     private final RevisionOperationResolver operationResolver;

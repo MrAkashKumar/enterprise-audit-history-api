@@ -6,6 +6,10 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.Instant;
 import java.util.Objects;
 
+/**
+ * Stores metadata shared by every success and error response.
+ * Concrete envelopes add either endpoint data or error details.
+ */
 public abstract class BaseApiResponse {
     private final Instant timestamp;
     private final ApiOutcomeCode status;

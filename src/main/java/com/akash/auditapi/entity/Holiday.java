@@ -11,6 +11,10 @@ import jakarta.persistence.Version;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * Maps the typed Holiday domain object to the Oracle holiday source table.
+ * JPA lifecycle hooks maintain creation and update audit fields.
+ */
 @Entity
 @Table(name = "HOLIDAY_CALENDAR")
 public class Holiday {

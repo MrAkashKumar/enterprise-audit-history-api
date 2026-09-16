@@ -12,6 +12,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Implements transactional CRUD operations for the typed Holiday feature.
+ * It maps between validated request DTOs, JPA entities, and response DTOs.
+ */
 @Service
 public class HolidayService {
     private final HolidayRepository repository;

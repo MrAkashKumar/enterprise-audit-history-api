@@ -3,6 +3,10 @@ package com.akash.auditapi.dao;
 import com.akash.auditapi.dto.TableDescriptor;
 import org.springframework.stereotype.Component;
 
+/**
+ * Builds Oracle SQL for paginated IDs and complete source/audit row reads.
+ * It accepts only previously validated table descriptors.
+ */
 @Component
 public class AuditSqlBuilder {
     static final String ENTITY_ID_ALIAS = "ENTITY_ID";

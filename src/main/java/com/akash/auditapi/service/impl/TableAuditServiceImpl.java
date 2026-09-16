@@ -20,6 +20,10 @@ import static com.akash.auditapi.exception.ApiMessages.AUDIT_SEARCH_COMPLETED_LO
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_SEARCH_STARTED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_TABLE_LIST_LOG;
 
+/**
+ * Orchestrates validation, table resolution, JDBC reads, and audit response assembly.
+ * It is the transactional implementation behind the generic audit controller.
+ */
 @Service
 @Slf4j
 public class TableAuditServiceImpl implements TableAuditService {

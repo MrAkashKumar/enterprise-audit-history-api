@@ -9,6 +9,10 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Executes paginated source and audit-history queries through Spring JDBC.
+ * IDs and pagination values are bound while identifiers come from verified metadata.
+ */
 @Repository
 public class TableAuditDao {
     private final JdbcTemplate jdbcTemplate;

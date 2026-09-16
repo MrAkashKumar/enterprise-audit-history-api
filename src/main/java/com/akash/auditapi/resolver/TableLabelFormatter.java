@@ -7,6 +7,10 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * Converts physical source-table names into readable hyphen-separated labels.
+ * It removes the configured prefix and title-cases each underscore-delimited segment.
+ */
 @Component
 public class TableLabelFormatter {
     public String format(String sourceTable, String sourceTablePrefix) {

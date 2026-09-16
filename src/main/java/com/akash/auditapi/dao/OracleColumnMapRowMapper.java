@@ -13,6 +13,10 @@ import java.util.Base64;
 
 import static com.akash.auditapi.exception.ApiMessages.LOB_TOO_LARGE;
 
+/**
+ * Converts an Oracle result row into a null-safe, column-ordered map.
+ * Generic audit reads use it because table columns are known only at runtime.
+ */
 @Component
 public class OracleColumnMapRowMapper extends ColumnMapRowMapper {
     @Override

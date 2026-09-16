@@ -1,5 +1,9 @@
 package com.akash.auditapi.enums;
 
+/**
+ * Maps Envers-compatible {@code REVTYPE} values to readable operations.
+ * Unknown or malformed database values are preserved as {@link #UNKNOWN}.
+ */
 public enum RevisionOperation {
     INSERT(0), UPDATE(1), DELETE(2), UNKNOWN(-1);
 

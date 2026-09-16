@@ -68,6 +68,9 @@ database/DBA platform. The Java service never creates triggers and never writes 
 
 ## Project structure
 
+Every production class, record, enum, and interface includes concise class-level Javadoc describing
+its responsibility and where it is used.
+
 ```text
 src/main/java/com/akash/auditapi
 ├── config              Validated audit configuration

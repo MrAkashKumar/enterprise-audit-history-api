@@ -8,6 +8,10 @@ import org.springframework.stereotype.Component;
 import static com.akash.auditapi.exception.ApiMessages.INVALID_PAGE_NUMBER;
 import static com.akash.auditapi.exception.ApiMessages.invalidPageSize;
 
+/**
+ * Enforces zero-based page numbers and the configured page-size limit.
+ * It prevents invalid offsets and oversized Oracle {@code IN} queries.
+ */
 @Component
 public class PaginationValidator {
     private final AuditApiProperties properties;

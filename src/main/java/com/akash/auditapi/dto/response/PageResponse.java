@@ -5,6 +5,10 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * Provides a reusable response shape for typed paginated results.
+ * Its factory converts a Spring Data page into immutable response rows.
+ */
 public record PageResponse<T>(int pageNo, int pageSize, int numberOfElements,
                               long totalElements, int totalPages, boolean hasPrevious,
                               boolean hasNext, List<T> rows) {

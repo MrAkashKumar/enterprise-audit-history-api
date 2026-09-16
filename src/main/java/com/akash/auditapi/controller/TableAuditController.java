@@ -19,6 +19,10 @@ import static com.akash.auditapi.constants.AuditDefaults.DEFAULT_PAGE_NUMBER_TEX
 import static com.akash.auditapi.constants.AuditDefaults.DEFAULT_PAGE_SIZE_TEXT;
 import static com.akash.auditapi.exception.ApiMessages.REQUEST_SUCCESSFUL;
 
+/**
+ * Exposes dynamic table discovery and source-with-history read endpoints.
+ * Request handling is delegated to {@link TableAuditService}.
+ */
 @RestController
 @RequestMapping(path = V1, produces = MediaType.APPLICATION_JSON_VALUE)
 public class TableAuditController {

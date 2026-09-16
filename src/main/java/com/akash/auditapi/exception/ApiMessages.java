@@ -1,5 +1,9 @@
 package com.akash.auditapi.exception;
 
+/**
+ * Centralizes safe client messages, validation text, and structured log templates.
+ * It prevents response and logging strings from being duplicated across layers.
+ */
 public final class ApiMessages {
     public static final String REQUEST_SUCCESSFUL = "Request completed successfully";
     public static final String INVALID_VALUE = "Invalid value";

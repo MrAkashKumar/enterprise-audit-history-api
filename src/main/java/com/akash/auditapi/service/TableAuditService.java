@@ -4,6 +4,10 @@ import com.akash.auditapi.dto.response.SearchResponse;
 
 import java.util.List;
 
+/**
+ * Defines the business operations exposed by the generic audit controller.
+ * Implementations provide table labels and paginated source-with-history searches.
+ */
 public interface TableAuditService {
     List<String> findAllTableLabels();
 

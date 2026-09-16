@@ -1,5 +1,9 @@
 package com.akash.auditapi.constants;
 
+/**
+ * Defines shared audit conventions, pagination defaults, and Oracle limits.
+ * Configuration classes use these values when no external override is supplied.
+ */
 public final class AuditDefaults {
     public static final String AUDIT_SUFFIX = "_AUD";
     public static final String SOURCE_TABLE_PREFIX = "PMC_";

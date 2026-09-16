@@ -17,6 +17,10 @@ import java.util.Map;
 import static com.akash.auditapi.exception.ApiMessages.SOURCE_TABLE_REQUIRED;
 import static com.akash.auditapi.exception.ApiMessages.duplicateTableLabel;
 
+/**
+ * Discovers source tables, creates public labels, and resolves accepted table inputs.
+ * It replaces a hardcoded table registry with Oracle metadata lookup.
+ */
 @Component
 public class AuditableTableCatalog {
     private final TableMetadataDao metadataDao;

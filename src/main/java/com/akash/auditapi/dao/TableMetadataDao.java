@@ -26,6 +26,10 @@ public class TableMetadataDao {
             """;
     private static final String FIND_TABLES_SQL =
             "select table_name from user_tables where table_name in (?, ?)";
+    private static final String FIND_PAIR_COLUMNS_SQL =
+            "select table_name, column_name from user_tab_columns where table_name in (?, ?)";
+    private static final String FIND_COLUMNS_SQL =
+            "select column_name from user_tab_columns where table_name = ?";
     private final JdbcTemplate jdbcTemplate;
 
     public TableMetadataDao(JdbcTemplate jdbcTemplate) {
@@ -40,6 +44,21 @@ public class TableMetadataDao {
                 sourceTablePrefix);
     }
 
+    public List<String> findApprovalTables(List<String> approvalSuffixes) {
+        if (approvalSuffixes.isEmpty()) {
+            return List.of();
+        }
+        String conditions = approvalSuffixes.stream()
+                .map(ignored -> "table_name like ? escape '\\'")
+                .collect(Collectors.joining(" or "));
+        String sql = "select table_name from user_tables where " + conditions
+                + " order by table_name";
+        Object[] patterns = approvalSuffixes.stream()
+                .map(suffix -> "%" + escapeLikeLiteral(suffix))
+                .toArray();
+        return jdbcTemplate.queryForList(sql, String.class, patterns);
+    }
+
     public Set<String> findExistingTables(String sourceTable, String auditTable) {
         List<String> names = jdbcTemplate.queryForList(
                 FIND_TABLES_SQL, String.class, sourceTable, auditTable);
@@ -47,23 +66,17 @@ public class TableMetadataDao {
     }
 
     public Map<String, Set<String>> findColumnsByTable(String sourceTable, String auditTable) {
-        return findColumnsByTables(List.of(sourceTable, auditTable));
-    }
-
-    public Map<String, Set<String>> findColumnsByTables(List<String> tables) {
-        if (tables.isEmpty()) {
-            return Map.of();
-        }
         Map<String, Set<String>> columnsByTable = new HashMap<>();
-        String placeholders = tables.stream().map(ignored -> "?").collect(Collectors.joining(", "));
-        String sql = "select table_name, column_name from user_tab_columns where table_name in ("
-                + placeholders + ")";
-        jdbcTemplate.query(sql, resultSet -> {
+        jdbcTemplate.query(FIND_PAIR_COLUMNS_SQL, resultSet -> {
             String table = resultSet.getString("TABLE_NAME");
             String column = resultSet.getString("COLUMN_NAME");
             columnsByTable.computeIfAbsent(table, ignored -> new HashSet<>()).add(column);
-        }, tables.toArray());
+        }, sourceTable, auditTable);
         return columnsByTable;
+    }
+
+    public Set<String> findColumns(String table) {
+        return new HashSet<>(jdbcTemplate.queryForList(FIND_COLUMNS_SQL, String.class, table));
     }
 
     private String escapeLikeLiteral(String value) {

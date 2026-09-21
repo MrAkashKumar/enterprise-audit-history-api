@@ -132,6 +132,26 @@ still supplies maker/checker usernames. If no matching approval table or row exi
 }
 ```
 
+Approval row presence is independent of checker nullability. A pending database row can return:
+
+```json
+"approval": {
+  "approvalRecordPresent": true,
+  "makerUsername": "vengza",
+  "checkerUsername": null
+}
+```
+
+An approved row containing both database usernames returns:
+
+```json
+"approval": {
+  "approvalRecordPresent": true,
+  "makerUsername": "user1",
+  "checkerUsername": "vengza"
+}
+```
+
 An empty result returns the
 same pagination object with zero totals and `"rows": []`.
 

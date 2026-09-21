@@ -7,13 +7,16 @@ import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.dto.ApprovalRecord;
 import com.akash.auditapi.dto.response.AuditedRowResponse;
 import com.akash.auditapi.dto.response.SearchResponse;
+import com.akash.auditapi.exception.AuditApiException;
 import com.akash.auditapi.resolver.AuditableTableCatalog;
 import com.akash.auditapi.resolver.ApprovalTableResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.service.AuditHistoryAssembler;
+import com.akash.auditapi.service.ApprovalEnricher;
 import com.akash.auditapi.service.TableAuditService;
 import com.akash.auditapi.validation.PaginationValidator;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,7 @@ import java.util.List;
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_SEARCH_COMPLETED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_SEARCH_STARTED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_TABLE_LIST_LOG;
+import static com.akash.auditapi.exception.ApiMessages.APPROVAL_ENRICHMENT_SKIPPED_LOG;
 
 /**
  * Orchestrates validation, table resolution, JDBC reads, and audit response assembly.
@@ -37,6 +41,7 @@ public class TableAuditServiceImpl implements TableAuditService {
     private final ApprovalTableResolver approvalTableResolver;
     private final PaginationValidator paginationValidator;
     private final AuditHistoryAssembler historyAssembler;
+    private final ApprovalEnricher approvalEnricher;
 
     public TableAuditServiceImpl(AuditableTableCatalog tableCatalog,
                                  TableDescriptorResolver tableResolver,
@@ -44,7 +49,8 @@ public class TableAuditServiceImpl implements TableAuditService {
                                  ApprovalDao approvalDao,
                                  ApprovalTableResolver approvalTableResolver,
                                  PaginationValidator paginationValidator,
-                                 AuditHistoryAssembler historyAssembler) {
+                                 AuditHistoryAssembler historyAssembler,
+                                 ApprovalEnricher approvalEnricher) {
         this.tableCatalog = tableCatalog;
         this.tableResolver = tableResolver;
         this.auditDao = auditDao;
@@ -52,6 +58,7 @@ public class TableAuditServiceImpl implements TableAuditService {
         this.approvalTableResolver = approvalTableResolver;
         this.paginationValidator = paginationValidator;
         this.historyAssembler = historyAssembler;
+        this.approvalEnricher = approvalEnricher;
     }
 
     @Override
@@ -85,14 +92,22 @@ public class TableAuditServiceImpl implements TableAuditService {
         if (ids.isEmpty()) {
             return List.of();
         }
-        return historyAssembler.assemble(table, ids,
-                auditDao.findSourceRows(table, ids), auditDao.findAuditRows(table, ids),
-                loadApprovalRows(table.sourceTable(), ids));
+        List<AuditedRowResponse> rows = historyAssembler.assemble(table, ids,
+                auditDao.findSourceRows(table, ids), auditDao.findAuditRows(table, ids));
+        return enrichWithApproval(table.sourceTable(), ids, rows);
     }
 
-    private List<ApprovalRecord> loadApprovalRows(String sourceTable, List<Object> ids) {
-        return approvalTableResolver.resolve(sourceTable)
-                .map(table -> approvalDao.findByIds(table, ids))
-                .orElseGet(List::of);
+    private List<AuditedRowResponse> enrichWithApproval(String sourceTable, List<Object> ids,
+                                                         List<AuditedRowResponse> rows) {
+        try {
+            List<ApprovalRecord> approvalRows = approvalTableResolver.resolve(sourceTable)
+                    .map(table -> approvalDao.findByIds(table, ids))
+                    .orElseGet(List::of);
+            return approvalEnricher.enrich(rows, approvalRows);
+        } catch (DataAccessException | AuditApiException | IllegalStateException exception) {
+            log.warn(APPROVAL_ENRICHMENT_SKIPPED_LOG, sourceTable,
+                    exception.getClass().getSimpleName());
+            return rows;
+        }
     }
 }

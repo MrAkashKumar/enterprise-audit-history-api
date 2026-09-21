@@ -32,7 +32,7 @@ class ApprovalDaoTest {
     }
 
     @Test
-    void mapsMakerAndNullableChecker() throws Exception {
+    void comparesApprovalIdAgainstThePagedEntityIds() throws Exception {
         ResultSet resultSet = mock(ResultSet.class);
         when(resultSet.getObject("ID")).thenReturn(10);
         when(resultSet.getString("MAKER_USERNAME")).thenReturn("maker.user");
@@ -40,6 +40,10 @@ class ApprovalDaoTest {
         when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class),
                 org.mockito.ArgumentMatchers.<RowMapper<ApprovalRecord>>any()))
                 .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(0, String.class))
+                            .contains("from PMC_CLIENT_APPROVAL where ID in (:ids)");
+                    MapSqlParameterSource parameters = invocation.getArgument(1);
+                    assertThat(parameters.getValue("ids")).isEqualTo(List.of(10));
                     RowMapper<ApprovalRecord> mapper = invocation.getArgument(2);
                     return List.of(mapper.mapRow(resultSet, 0));
                 });

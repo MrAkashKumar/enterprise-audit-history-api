@@ -1,7 +1,6 @@
 package com.akash.auditapi.resolver;
 
 import com.akash.auditapi.config.AuditApiProperties;
-import com.akash.auditapi.config.ApprovalProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
 import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.AuditApiException;
@@ -9,7 +8,6 @@ import com.akash.auditapi.validation.OracleIdentifierValidator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,11 +18,8 @@ class AuditableTableCatalogTest {
     private final TableMetadataDao metadataDao = mock(TableMetadataDao.class);
     private final AuditApiProperties properties = new AuditApiProperties(
             "PMC_", "_AUD", "ID", "REV", "REVTYPE", 200);
-    private final ApprovalProperties approvalProperties = new ApprovalProperties(
-            null, null, null, null, Map.of("PMC_SPECIAL", "PMC_SPECIAL_FLOW"));
     private final AuditableTableCatalog catalog = new AuditableTableCatalog(
-            metadataDao, properties, approvalProperties,
-            new OracleIdentifierValidator(), new TableLabelFormatter());
+            metadataDao, properties, new OracleIdentifierValidator(), new TableLabelFormatter());
 
     @Test
     void returnsDynamicLabelsInAlphabeticalOrder() {
@@ -32,7 +27,9 @@ class AuditableTableCatalogTest {
                 "PMC_CLIENT_APPROVAL", "PMC_CLIENT_APPROVAL_REQUEST", "PMC_SPECIAL_FLOW");
 
         assertThat(catalog.labels())
-                .containsExactly("Account-Statement", "Loco-Singapore", "Position-Balance");
+                .containsExactly("Account-Statement", "Client-Approval",
+                        "Client-Approval-Request", "Loco-Singapore", "Position-Balance",
+                        "Special-Flow");
     }
 
     @Test

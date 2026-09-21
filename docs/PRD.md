@@ -108,6 +108,11 @@ The row contract is state-independent:
 `approval` is always present and contains `approvalRecordPresent`, `makerUsername`, and
 `checkerUsername`. Missing approval tables or rows return `false` and JSON `null` usernames.
 Approval rows are matched directly using the same numeric `ID`, including for deleted source rows.
+Approval ID matching is normalized without scale so Oracle values such as `1`, `1.0`, and `1.00`
+match the same response entity. Existing source/audit grouping remains unchanged.
+`approvalRecordPresent` is based on row existence, not status or checker nullability:
+an `APPROVED` row normally has maker/checker, while a `PENDING` row remains present with a nullable
+checker.
 
 The service must preserve database `null` values and source column order in map-backed snapshots.
 It must not replace full row data with a reduced, table-specific projection. The success response
@@ -120,10 +125,13 @@ audit table names remain internal query metadata.
 GET /api/v1/allTable
 ```
 
-No request body or pagination is accepted. The API queries Oracle `USER_TABLES`, selects names
-with the configured source prefix (default `PMC_`), excludes the configured audit and approval
-suffixes, and returns case-insensitively alphabetized labels under `data.tableLabels`. For example,
+No request body or pagination is accepted. The API retains its original behavior: it queries Oracle
+`USER_TABLES`, selects names with the configured prefix (default `PMC_`), excludes only the
+configured audit suffix, and returns case-insensitively alphabetized labels under
+`data.tableLabels`. For example,
 `PMC_ACCOUNT_STATEMENT` becomes `Account-Statement`. Audit table names are not exposed.
+This endpoint must remain independent of approval metadata resolution and approval-row queries.
+Approval enrichment is an additive responsibility of the detail endpoint only.
 
 ### 4.3 Holiday CRUD example
 
@@ -186,7 +194,8 @@ This API does not create triggers, generate revisions, or insert audit records.
 3. Page distinct non-null IDs across the union of source and audit tables.
 4. Include audit-only IDs so deleted entities remain discoverable.
 5. Load complete source rows and complete audit snapshots using `SELECT *`.
-6. Group source and history rows using a normalized representation of the ID.
+6. Group source and history rows using the existing ID representation without changing the
+   original source/audit behavior.
 7. Sort audit history by `REV` ascending and assign a one-based `sequenceNumber` per entity.
 8. Map `REVTYPE`: `0=INSERT`, `1=UPDATE`, `2=DELETE`; other values become `UNKNOWN`.
 9. Calculate total, insert, update, delete, and unknown counts plus first/latest revisions.
@@ -201,7 +210,7 @@ return `originalRecordPresent=false` and `originalData=null`.
 
 Supported original tables are discovered from `USER_TABLES` on each catalog request. There is no
 Java enum or configuration allowlist to maintain. Discovery uses the configured prefix and
-excludes names ending in configured audit or approval suffixes. Labels are derived by removing the prefix,
+excludes names ending in the configured audit suffix. Labels are derived by removing the prefix,
 splitting on underscores, title-casing each segment, and joining with `-`. The audit name is
 always derived internally as `<SOURCE_TABLE><AUDIT_SUFFIX>`.
 

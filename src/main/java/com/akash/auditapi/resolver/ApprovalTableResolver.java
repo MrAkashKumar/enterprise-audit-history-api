@@ -8,9 +8,7 @@ import com.akash.auditapi.validation.OracleIdentifierValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,32 +45,45 @@ public class ApprovalTableResolver {
 
     private Optional<ApprovalTableDescriptor> resolveUncached(String source) {
         String override = properties.tableOverrides().get(source);
-        List<String> candidates = override == null
-                ? properties.suffixes().stream()
-                    .map(suffix -> identifierValidator.normalizeTableName(source + suffix)).toList()
-                : List.of(override);
-        Map<String, Set<String>> columnsByTable = metadataDao.findColumnsByTables(candidates);
-        List<String> existing = new ArrayList<>();
-        candidates.stream().filter(columnsByTable::containsKey).forEach(existing::add);
-
-        if (override != null && existing.isEmpty()) {
-            throw new IllegalStateException(configuredApprovalTableNotFound(source, override));
-        }
-        if (existing.size() > 1) {
-            throw new IllegalStateException(AMBIGUOUS_APPROVAL_TABLE + source);
-        }
-        if (existing.isEmpty()) {
+        Optional<String> resolvedTable = override == null
+                ? discoverApprovalTable(source)
+                : Optional.of(override);
+        if (resolvedTable.isEmpty()) {
             return Optional.empty();
         }
 
-        String table = existing.getFirst();
-        Set<String> columns = columnsByTable.get(table);
+        String table = resolvedTable.get();
+        Set<String> columns = metadataDao.findColumns(table);
+        if (override != null && columns.isEmpty()) {
+            throw new IllegalStateException(configuredApprovalTableNotFound(source, override));
+        }
+        if (columns.isEmpty()) {
+            return Optional.empty();
+        }
+
         requireColumn(columns, table, properties.idColumn());
         requireColumn(columns, table, properties.makerUsernameColumn());
         requireColumn(columns, table, properties.checkerUsernameColumn());
         log.info(APPROVAL_METADATA_VERIFIED_LOG, source, table);
         return Optional.of(new ApprovalTableDescriptor(table, properties.idColumn(),
                 properties.makerUsernameColumn(), properties.checkerUsernameColumn()));
+    }
+
+    private Optional<String> discoverApprovalTable(String source) {
+        List<String> discovered = metadataDao.findApprovalTables(properties.suffixes()).stream()
+                .map(identifierValidator::normalizeTableName)
+                .toList();
+        List<String> exact = properties.suffixes().stream()
+                .map(suffix -> identifierValidator.normalizeTableName(source + suffix))
+                .filter(discovered::contains)
+                .toList();
+        if (exact.size() > 1) {
+            throw new IllegalStateException(AMBIGUOUS_APPROVAL_TABLE + source);
+        }
+        if (!exact.isEmpty()) {
+            return Optional.of(exact.getFirst());
+        }
+        return Optional.empty();
     }
 
     private void requireColumn(Set<String> columns, String table, String column) {

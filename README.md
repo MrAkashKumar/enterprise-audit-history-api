@@ -335,7 +335,10 @@ GET /api/v1/allTable
 This endpoint has no request body and no pagination. It discovers source tables from Oracle
 `USER_TABLES` whose names start with the configured prefix (default `PMC_`) and do not end with
 the audit suffix (default `_AUD`). It returns only alphabetically sorted formatted labels; audit
-names are not exposed.
+names are not exposed. This original catalog rule is unchanged; approval-suffixed tables are not
+silently removed from the result.
+The table-list workflow does not call the approval resolver or approval DAO; approval enrichment
+is executed only by the paginated detail endpoint.
 The same label can be passed directly to the detail endpoint, for example
 `GET /api/v1/Loco-Singapore?pageNo=0&pageSize=10`.
 
@@ -463,7 +466,10 @@ Complete request bodies and every error response are maintained in
 
 Optional approval enrichment uses `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`. Each approval
 table must contain `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME`, and its numeric `ID` must equal
-the source entity ID. Configure a table override when physical base names differ.
+the source entity ID. Exact conventional names are discovered automatically. When bases differ,
+for example `PMC_LOCO_SINGAPORE` and `PMC_LOCO_SG_APPROVAL_REQUEST`, configure an explicit
+`audit-api.approval.table-overrides` entry. Partial-name guessing is intentionally not used.
+Approval failures return absent approval data without changing the existing source/audit response.
 
 No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
 next request discovers the table dynamically.

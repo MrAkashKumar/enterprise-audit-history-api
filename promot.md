@@ -175,7 +175,9 @@ dynamic rows to a fixed projection.
 
 `approval` must always contain `approvalRecordPresent`, `makerUsername`, and `checkerUsername`.
 Discover optional `<SOURCE>_APPROVAL_REQUEST` and `<SOURCE>_APPROVAL` tables, with a configurable
-override map for naming exceptions. Match the numeric approval `ID` directly to the source ID and
+override map for naming exceptions. Do not guess approval tables from partial or abbreviated names.
+Apply scale-neutral numeric normalization only when matching a response entity
+ID to an approval-table ID; do not change the existing source/audit grouping behavior. Then
 load only `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME` in one page-level query. Do not parse or
 return `PROPOSED_CHANGES`. Keep usernames for audit-only/deleted IDs when the approval row remains.
 

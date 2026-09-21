@@ -21,6 +21,8 @@ public final class ApiMessages {
             "Audit table metadata verified [sourceTable={}, auditTable={}]";
     public static final String APPROVAL_METADATA_VERIFIED_LOG =
             "Approval table metadata verified [sourceTable={}, approvalTable={}]";
+    public static final String APPROVAL_ENRICHMENT_SKIPPED_LOG =
+            "Optional approval enrichment skipped [sourceTable={}, exceptionType={}]";
     public static final String AMBIGUOUS_APPROVAL_TABLE =
             "Multiple approval tables found for source table: ";
     public static final String DATABASE_FAILURE_LOG =

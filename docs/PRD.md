@@ -92,8 +92,8 @@ This GET endpoint has no request body.
 | `hasPrevious`, `hasNext` | boolean | Page navigation state |
 | `rows` | array | Records grouped by entity ID |
 
-Each item in `rows` contains `id`, `originalRecordPresent`, `originalData`, `changeSummary`, and
-`auditHistory`. `originalData` includes every source column returned by Oracle. Each history item
+Each item in `rows` contains `id`, `originalRecordPresent`, `originalData`, `approval`,
+`changeSummary`, and `auditHistory`. `originalData` includes every source column returned by Oracle. Each history item
 contains the derived sequence/revision/operation fields and every audit-table column.
 
 The row contract is state-independent:
@@ -104,6 +104,10 @@ The row contract is state-independent:
 | Source row was deleted | `originalRecordPresent=false`; `originalData=null`; history remains complete |
 | No audit revisions exist | Zero-valued `changeSummary`; empty `auditHistory` |
 | Unknown `REVTYPE` exists | Preserve the row and return `operation=UNKNOWN`; increment `unknownCount` |
+
+`approval` is always present and contains `approvalRecordPresent`, `makerUsername`, and
+`checkerUsername`. Missing approval tables or rows return `false` and JSON `null` usernames.
+Approval rows are matched directly using the same numeric `ID`, including for deleted source rows.
 
 The service must preserve database `null` values and source column order in map-backed snapshots.
 It must not replace full row data with a reduced, table-specific projection. The success response
@@ -117,8 +121,8 @@ GET /api/v1/allTable
 ```
 
 No request body or pagination is accepted. The API queries Oracle `USER_TABLES`, selects names
-with the configured source prefix (default `PMC_`), excludes the configured audit suffix (default
-`_AUD`), and returns case-insensitively alphabetized labels under `data.tableLabels`. For example,
+with the configured source prefix (default `PMC_`), excludes the configured audit and approval
+suffixes, and returns case-insensitively alphabetized labels under `data.tableLabels`. For example,
 `PMC_ACCOUNT_STATEMENT` becomes `Account-Statement`. Audit table names are not exposed.
 
 ### 4.3 Holiday CRUD example
@@ -186,6 +190,8 @@ This API does not create triggers, generate revisions, or insert audit records.
 7. Sort audit history by `REV` ascending and assign a one-based `sequenceNumber` per entity.
 8. Map `REVTYPE`: `0=INSERT`, `1=UPDATE`, `2=DELETE`; other values become `UNKNOWN`.
 9. Calculate total, insert, update, delete, and unknown counts plus first/latest revisions.
+10. Resolve an optional `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL` table and load maker and
+    checker usernames for every page ID in one query.
 
 `REV` is a global transaction revision and can occur for multiple IDs. `sequenceNumber` is local
 to one entity. `originalData` is the current source row, not the initial snapshot. Deleted entities
@@ -195,7 +201,7 @@ return `originalRecordPresent=false` and `originalData=null`.
 
 Supported original tables are discovered from `USER_TABLES` on each catalog request. There is no
 Java enum or configuration allowlist to maintain. Discovery uses the configured prefix and
-excludes names ending in the configured audit suffix. Labels are derived by removing the prefix,
+excludes names ending in configured audit or approval suffixes. Labels are derived by removing the prefix,
 splitting on underscores, title-casing each segment, and joining with `-`. The audit name is
 always derived internally as `<SOURCE_TABLE><AUDIT_SUFFIX>`.
 
@@ -203,7 +209,8 @@ The runtime Oracle account must be least-privileged for generic audit queries an
 the schema owner because discovery intentionally uses `USER_TABLES`/`USER_TAB_COLUMNS`. A
 cross-schema `SELECT` grant or `CURRENT_SCHEMA` change does not populate these views.
 The production application does not create, modify, or seed database tables or rows. There is no
-runtime sample-data loader and no dummy-data SQL file.
+runtime sample-data loader, dummy-data SQL file, or hardcoded response row. All generic endpoint
+values come from Oracle queries; JSON files under `docs` describe contracts only.
 
 Before exposing a table, the DBA must confirm that its row-level trigger is enabled, valid,
 tested for all three DML operations, and writes the required full snapshot atomically. Operations
@@ -258,10 +265,10 @@ exception messages, or stack traces.
 size, and latency because one ID may expand into many audit snapshots.
 
 A warm audit request executes one ID-page query with an Oracle window count, one current-row query,
-and one audit-row query. This removes the separate count round trip for normal pages. A page beyond
+one audit-row query, and—only when supported—one narrow approval query. This removes the separate count round trip for normal pages. A page beyond
 the available range performs one fallback count because an empty page has no window-count row.
-Empty pages skip source and audit-row loading. Verified table descriptors are cached, required
-columns are fetched together during first resolution, and source/audit data are never cached.
+Empty pages skip source, audit, and approval-row loading. Verified descriptors are cached, required
+columns are fetched together during first resolution, and row data are never cached.
 Revision summaries are accumulated in the same pass that groups history. Recommended audit
 indexing begins with `(ID, REV)` and must be checked against actual Oracle execution plans and
 load-test percentiles.
@@ -275,6 +282,8 @@ load-test percentiles.
 | `spring.datasource.password` / `ORACLE_PASSWORD` | Database secret |
 | `audit-api.source-table-prefix` / `AUDIT_SOURCE_TABLE_PREFIX` | Source-table discovery prefix |
 | `audit-api.max-page-size` / `AUDIT_MAX_PAGE_SIZE` | Maximum accepted page size |
+| `audit-api.approval.suffixes` | Conventional approval suffixes |
+| `audit-api.approval.table-overrides` | Exceptional source-to-approval table mappings |
 
 Secrets must come from environment or an enterprise secret manager and must never be committed.
 Production JPA schema generation remains disabled.
@@ -286,7 +295,9 @@ Production JPA schema generation remains disabled.
   transaction boundaries, pagination, and orchestration.
 - `AuditableTableCatalog` owns dynamic discovery, label formatting, and name resolution.
 - `AuditHistoryAssembler` owns row indexing, audit grouping, revision sequencing, operation
-  resolution, and change-summary construction.
+  resolution, approval merging, and change-summary construction.
+- `ApprovalTableResolver` and `ApprovalDao` isolate optional metadata resolution and bulk username
+  lookup without changing the controller contract.
 - DAO and JPA repository types exclusively own persistence access.
 - `RevisionOperationResolver` provides the operation-mapping Strategy and is injected by
   interface.

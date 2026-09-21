@@ -61,5 +61,6 @@ class TableMetadataDaoTest {
         assertThat(dao.findColumnsByTable("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .containsEntry("POSITION_BALANCE", java.util.Set.of("ID"))
                 .containsEntry("POSITION_BALANCE_AUD", java.util.Set.of("REV", "REVTYPE"));
+        assertThat(dao.findColumnsByTables(List.of())).isEmpty();
     }
 }

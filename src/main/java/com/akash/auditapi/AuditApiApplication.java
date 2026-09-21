@@ -1,6 +1,7 @@
 package com.akash.auditapi;
 
 import com.akash.auditapi.config.AuditApiProperties;
+import com.akash.auditapi.config.ApprovalProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -10,7 +11,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
  * It also enables binding and validation of the audit API configuration.
  */
 @SpringBootApplication
-@EnableConfigurationProperties(AuditApiProperties.class)
+@EnableConfigurationProperties({AuditApiProperties.class, ApprovalProperties.class})
 public class AuditApiApplication {
     public static void main(String[] args) {
         SpringApplication.run(AuditApiApplication.class, args);

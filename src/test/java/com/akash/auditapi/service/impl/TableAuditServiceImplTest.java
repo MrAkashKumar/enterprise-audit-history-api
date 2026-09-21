@@ -1,13 +1,17 @@
 package com.akash.auditapi.service.impl;
 
 import com.akash.auditapi.dao.AuditIdPage;
+import com.akash.auditapi.dao.ApprovalDao;
 import com.akash.auditapi.dao.TableAuditDao;
 import com.akash.auditapi.dto.response.AuditRevisionResponse;
+import com.akash.auditapi.dto.ApprovalRecord;
+import com.akash.auditapi.dto.ApprovalTableDescriptor;
 import com.akash.auditapi.dto.ChangeSummary;
 import com.akash.auditapi.enums.RevisionOperation;
 import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.resolver.AuditableTableCatalog;
+import com.akash.auditapi.resolver.ApprovalTableResolver;
 import com.akash.auditapi.resolver.EnversRevisionOperationResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.service.AuditHistoryAssembler;
@@ -17,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,9 +35,12 @@ class TableAuditServiceImplTest {
     private final AuditableTableCatalog tableCatalog = mock(AuditableTableCatalog.class);
     private final TableDescriptorResolver tableResolver = mock(TableDescriptorResolver.class);
     private final TableAuditDao auditDao = mock(TableAuditDao.class);
+    private final ApprovalDao approvalDao = mock(ApprovalDao.class);
+    private final ApprovalTableResolver approvalTableResolver = mock(ApprovalTableResolver.class);
     private final PaginationValidator paginationValidator = mock(PaginationValidator.class);
     private final TableAuditService service = new TableAuditServiceImpl(
-            tableCatalog, tableResolver, auditDao, paginationValidator,
+            tableCatalog, tableResolver, auditDao, approvalDao, approvalTableResolver,
+            paginationValidator,
             new AuditHistoryAssembler(new EnversRevisionOperationResolver()));
 
     @Test void returnsDynamicTableLabels() {
@@ -67,6 +75,13 @@ class TableAuditServiceImplTest {
         when(auditDao.findAuditRows(table, List.of(1, 2))).thenReturn(List.of(
                 completeAuditRow, Map.of("ID", 1, "REV", 11, "REVTYPE", 1),
                 Map.of("ID", 2, "REV", 12, "REVTYPE", 2)));
+        ApprovalTableDescriptor approvalTable = new ApprovalTableDescriptor(
+                "HOLIDAY_CALENDAR_APPROVAL", "ID", "MAKER_USERNAME", "CHECKER_USERNAME");
+        when(approvalTableResolver.resolve("HOLIDAY_CALENDAR"))
+                .thenReturn(Optional.of(approvalTable));
+        when(approvalDao.findByIds(approvalTable, List.of(1, 2))).thenReturn(List.of(
+                new ApprovalRecord(1, "maker.user", null),
+                new ApprovalRecord(2, "maker.user", "checker.user")));
         SearchResponse response = service.sourceWithAuditHistory("HOLIDAY_CALENDAR", 0, 10);
         assertThat(response.getRows()).hasSize(2);
         assertThat(response.getRows().get(0).originalRecordPresent()).isTrue();
@@ -78,9 +93,13 @@ class TableAuditServiceImplTest {
         assertThat(response.getRows().get(0).auditHistory().get(0).operation()).isEqualTo(RevisionOperation.INSERT);
         assertThat(response.getRows().get(0).changeSummary())
                 .isEqualTo(new ChangeSummary(2, 1, 1, 0, 0, 10, 11));
+        assertThat(response.getRows().get(0).approval().approvalRecordPresent()).isTrue();
+        assertThat(response.getRows().get(0).approval().checkerUsername()).isNull();
         assertThat(response.getRows().get(1).originalRecordPresent()).isFalse();
         assertThat(response.getRows().get(1).originalData()).isNull();
         assertThat(response.getRows().get(1).changeSummary().deleteCount()).isEqualTo(1);
+        assertThat(response.getRows().get(1).approval().checkerUsername())
+                .isEqualTo("checker.user");
     }
 
     @Test void returnsEmptyPageWithoutQueryingRows() {
@@ -184,6 +203,28 @@ class TableAuditServiceImplTest {
         assertThatThrownBy(() -> service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Database row contains a null entity ID");
+    }
+
+    @Test void rejectsDuplicateApprovalRowsForOneSourceId() {
+        TableDescriptor table = new TableDescriptor(
+                "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");
+        ApprovalTableDescriptor approvalTable = new ApprovalTableDescriptor(
+                "POSITION_BALANCE_APPROVAL", "ID", "MAKER_USERNAME", "CHECKER_USERNAME");
+        List<Object> ids = List.of(1);
+        when(tableCatalog.resolve("POSITION_BALANCE")).thenReturn("POSITION_BALANCE");
+        when(tableResolver.resolve("POSITION_BALANCE")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 1));
+        when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(Map.of("ID", 1)));
+        when(auditDao.findAuditRows(table, ids)).thenReturn(List.of());
+        when(approvalTableResolver.resolve("POSITION_BALANCE"))
+                .thenReturn(Optional.of(approvalTable));
+        when(approvalDao.findByIds(approvalTable, ids)).thenReturn(List.of(
+                new ApprovalRecord(1, "maker.one", null),
+                new ApprovalRecord(1, "maker.two", "checker")));
+
+        assertThatThrownBy(() -> service.sourceWithAuditHistory("POSITION_BALANCE", 0, 10))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Multiple approval rows");
     }
 
 }

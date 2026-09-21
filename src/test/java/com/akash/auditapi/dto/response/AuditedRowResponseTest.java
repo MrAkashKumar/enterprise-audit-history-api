@@ -23,13 +23,15 @@ class AuditedRowResponseTest {
                 Map.of("ID", 1002, "REV", 10, "REVTYPE", 0)));
 
         AuditedRowResponse response = new AuditedRowResponse(
-                1002, true, source, new ChangeSummary(1, 1, 0, 0, 0, 10, 10), history);
+                1002, true, source, null,
+                new ChangeSummary(1, 1, 0, 0, 0, 10, 10), history);
         source.put("ID", 9999);
         history.clear();
 
         assertThat(response.originalData()).containsEntry("ID", 1002)
                 .containsEntry("DESCRIPTION", null);
         assertThat(response.auditHistory()).hasSize(1);
+        assertThat(response.approval()).isEqualTo(ApprovalResponse.ABSENT);
         assertThatThrownBy(() -> response.originalData().put("ID", 9999))
                 .isInstanceOf(UnsupportedOperationException.class);
     }

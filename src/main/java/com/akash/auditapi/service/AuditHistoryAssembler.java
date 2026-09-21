@@ -1,9 +1,11 @@
 package com.akash.auditapi.service;
 
 import com.akash.auditapi.dto.ChangeSummary;
+import com.akash.auditapi.dto.ApprovalRecord;
 import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.dto.response.AuditRevisionResponse;
 import com.akash.auditapi.dto.response.AuditedRowResponse;
+import com.akash.auditapi.dto.response.ApprovalResponse;
 import com.akash.auditapi.enums.RevisionOperation;
 import com.akash.auditapi.resolver.RevisionOperationResolver;
 import org.springframework.stereotype.Component;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.akash.auditapi.exception.ApiMessages.NULL_ENTITY_ID;
+import static com.akash.auditapi.exception.ApiMessages.duplicateApprovalRecord;
 
 /**
  * Converts database rows into stable responses grouped by entity ID.
@@ -29,9 +32,11 @@ public class AuditHistoryAssembler {
 
     public List<AuditedRowResponse> assemble(TableDescriptor table, List<Object> ids,
                                               List<Map<String, Object>> sourceRows,
-                                              List<Map<String, Object>> auditRows) {
+                                              List<Map<String, Object>> auditRows,
+                                              List<ApprovalRecord> approvalRecords) {
         Map<String, Map<String, Object>> sourceById = indexSourceRows(table, sourceRows);
         Map<String, HistoryAccumulator> historyById = indexHistory(table, auditRows);
+        Map<String, ApprovalResponse> approvalById = indexApprovals(approvalRecords);
 
         List<AuditedRowResponse> rows = new ArrayList<>(ids.size());
         for (Object id : ids) {
@@ -39,10 +44,24 @@ public class AuditHistoryAssembler {
             Map<String, Object> originalData = sourceById.get(entityKey);
             HistoryAccumulator history = historyById.get(entityKey);
             rows.add(new AuditedRowResponse(id, originalData != null, originalData,
+                    approvalById.getOrDefault(entityKey, ApprovalResponse.ABSENT),
                     history == null ? ChangeSummary.EMPTY : history.summary(),
                     history == null ? List.of() : history.revisions()));
         }
         return rows;
+    }
+
+    private Map<String, ApprovalResponse> indexApprovals(List<ApprovalRecord> approvalRecords) {
+        Map<String, ApprovalResponse> approvalById = new HashMap<>();
+        for (ApprovalRecord record : approvalRecords) {
+            String key = entityKey(record.id());
+            ApprovalResponse previous = approvalById.putIfAbsent(key,
+                    ApprovalResponse.present(record.makerUsername(), record.checkerUsername()));
+            if (previous != null) {
+                throw new IllegalStateException(duplicateApprovalRecord(record.id()));
+            }
+        }
+        return approvalById;
     }
 
     private Map<String, Map<String, Object>> indexSourceRows(

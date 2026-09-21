@@ -1,6 +1,7 @@
 package com.akash.auditapi.resolver;
 
 import com.akash.auditapi.config.AuditApiProperties;
+import com.akash.auditapi.config.ApprovalProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
 import com.akash.auditapi.enums.ApiOutcomeCode;
 import com.akash.auditapi.exception.InvalidRequestException;
@@ -25,14 +26,17 @@ import static com.akash.auditapi.exception.ApiMessages.duplicateTableLabel;
 public class AuditableTableCatalog {
     private final TableMetadataDao metadataDao;
     private final AuditApiProperties properties;
+    private final ApprovalProperties approvalProperties;
     private final OracleIdentifierValidator identifierValidator;
     private final TableLabelFormatter labelFormatter;
 
     public AuditableTableCatalog(TableMetadataDao metadataDao, AuditApiProperties properties,
+                                 ApprovalProperties approvalProperties,
                                  OracleIdentifierValidator identifierValidator,
                                  TableLabelFormatter labelFormatter) {
         this.metadataDao = metadataDao;
         this.properties = properties;
+        this.approvalProperties = approvalProperties;
         this.identifierValidator = identifierValidator;
         this.labelFormatter = labelFormatter;
     }
@@ -67,6 +71,9 @@ public class AuditableTableCatalog {
         for (String discoveredTable : metadataDao.findSourceTables(
                 properties.sourceTablePrefix(), properties.auditSuffix())) {
             String source = identifierValidator.normalizeTableName(discoveredTable);
+            if (approvalProperties.isApprovalTable(source)) {
+                continue;
+            }
             String label = labelFormatter.format(source, properties.sourceTablePrefix());
             String previous = sourceByLabel.putIfAbsent(label.toUpperCase(Locale.ROOT), source);
             if (previous != null && !previous.equals(source)) {

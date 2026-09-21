@@ -14,6 +14,7 @@ The authoritative requirements and acceptance criteria are in [docs/PRD.md](docs
 - History grouped by entity ID and ordered by Envers revision.
 - `REVTYPE` mapping: `0=INSERT`, `1=UPDATE`, `2=DELETE`, other values=`UNKNOWN`.
 - Deleted entities retained through audit-only IDs.
+- Optional maker/checker enrichment from a matching approval table using the shared numeric `ID`.
 - Zero-based pagination with a configurable safety limit.
 - One consistent success/error response envelope with endpoint content under `data`.
 - JPA for the typed Holiday CRUD example and `JdbcTemplate` for generic dynamic audit reads.
@@ -99,6 +100,8 @@ The backend keeps responsibilities small and uses constructor injection througho
 | `TableAuditServiceImpl` | Validates input and coordinates catalog, metadata, pagination, DAO, and assembly |
 | `AuditHistoryAssembler` | Groups source/audit rows by ID and builds immutable response DTOs |
 | `TableAuditDao` | Executes parameterized source and audit queries |
+| `ApprovalTableResolver` | Resolves and caches optional `_APPROVAL_REQUEST`/`_APPROVAL` metadata |
+| `ApprovalDao` | Loads only ID, maker, and checker for all IDs on the current page |
 | `AuditableTableCatalog` | Discovers source tables and resolves physical names and public labels |
 | `TableDescriptorResolver` | Verifies the source/audit pair and required metadata |
 | `RevisionOperationResolver` | Strategy abstraction for mapping `REVTYPE` to an operation |
@@ -208,6 +211,7 @@ Each `rows` item contains:
 - `id`: entity identifier.
 - `originalRecordPresent`: whether the row still exists in the source table.
 - `originalData`: every current source-table column, or `null` after deletion.
+- `approval`: stable maker/checker information from the optional approval table.
 - `changeSummary`: revision counts and first/latest revision.
 - `auditHistory`: ordered history with sequence, revision, operation, and every audit column.
 
@@ -242,6 +246,11 @@ Representative populated response (the dynamic column names come from the select
           "ID": 1001,
           "VERSION": 2,
           "STATUS": "ACTIVE"
+        },
+        "approval": {
+          "approvalRecordPresent": true,
+          "makerUsername": "maker.user",
+          "checkerUsername": "checker.user"
         },
         "changeSummary": {
           "totalRevisions": 2,
@@ -282,10 +291,19 @@ Representative populated response (the dynamic column names come from the select
 }
 ```
 
+The expanded response with complete representative source and audit columns is available at
+[position-balance-success-response.json](docs/examples/position-balance-success-response.json).
+This file documents the JSON contract only; it is never loaded, seeded, or returned as static
+runtime data.
+
 `ID`, `VERSION`, and `STATUS` above are illustrative. At runtime, `originalData` contains every
 column returned by the source query and each `auditHistory` item contains every column returned by
 the audit query, including database `null` values. The API adds only the four derived history
 fields: `sequenceNumber`, `revision`, `revisionTypeCode`, and `operation`.
+
+Approval lookup is optional and never changes pagination or revision counts. If no corresponding
+approval table or row exists, the response contains `approvalRecordPresent: false` with both
+usernames set to JSON `null`. A retained approval row is also returned for a deleted source entity.
 
 Empty result shape:
 
@@ -443,6 +461,10 @@ Complete request bodies and every error response are maintained in
    `USER_TABLES` intentionally does not discover objects owned by another schema.
 6. Validate the real Oracle execution plan and indexes.
 
+Optional approval enrichment uses `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`. Each approval
+table must contain `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME`, and its numeric `ID` must equal
+the source entity ID. Configure a table override when physical base names differ.
+
 No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
 next request discovers the table dynamically.
 
@@ -468,6 +490,20 @@ Important defaults:
 | `audit-api.audit-order-column` | `REV` | History ordering column |
 | `audit-api.revision-type-column` | `REVTYPE` | Envers operation code |
 | `audit-api.max-page-size` | `200` | Maximum IDs accepted per request |
+| `audit-api.approval.suffixes` | `_APPROVAL_REQUEST`, `_APPROVAL` | Approval naming conventions |
+| `audit-api.approval.id-column` | `ID` | Shared source/approval identifier |
+| `audit-api.approval.maker-username-column` | `MAKER_USERNAME` | Maker column |
+| `audit-api.approval.checker-username-column` | `CHECKER_USERNAME` | Checker column |
+| `audit-api.approval.table-overrides` | Empty map | Exceptional source-to-approval names |
+
+Example deployment override for differing base names:
+
+```yaml
+audit-api:
+  approval:
+    table-overrides:
+      PMC_LOCO_SINGAPORE: PMC_LOCO_SG_APPROVAL_REQUEST
+```
 
 The maximum page size cannot exceed Oracle's 1,000-expression `IN` limit. The lower default of
 200 also limits heap usage, connection occupancy, JSON size, and latency when each ID has many
@@ -506,12 +542,13 @@ A warm generic audit request performs:
 1. One paged-ID query that also returns the unpaged total using an Oracle window count.
 2. One current-source-row query.
 3. One complete audit-history query.
+4. When an approval table exists, one narrow maker/checker query for all page IDs.
 
 This removes one database round trip from normal requests. A page beyond the available range uses
 one fallback count query because Oracle returns no window-count value for an empty result page.
-Empty pages skip the source and history queries. Successfully verified table descriptors are
-cached, and required columns are loaded in one metadata query during first resolution; source and
-audit records are never cached. Revision summaries are accumulated while history is grouped rather
+Empty pages skip the source, history, and approval queries. Successfully verified audit and
+approval descriptors are cached, and required columns are loaded in one metadata query during
+first resolution; row data are never cached. Revision summaries are accumulated while history is grouped rather
 than by rescanning each entity history. Audit indexes should begin with `(ID, REV)`, subject to DBA
 review of existing indexes and real execution plans.
 
@@ -561,8 +598,9 @@ source compilation failures.
 ## Database-data policy
 
 - Production resources contain no sample-data loader or dummy-data DML script.
+- Every generic audit value is read at request time from the selected Oracle source, audit, and
+  optional approval tables; the service contains no hardcoded response rows.
 - The application uses `ddl-auto: none` and does not create or update Oracle schemas.
 - Test fixtures live only under `src/test` and use mocks or an isolated H2 database.
 - Test execution must never point to or mutate a production Oracle database.
-- The remaining Oracle SQL resource contains index guidance only and must be reviewed by a DBA
-  before use.
+- Documentation JSON is illustrative contract material only and is never read by application code.

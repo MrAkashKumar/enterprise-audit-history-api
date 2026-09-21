@@ -148,6 +148,7 @@ Each row contains only:
 - `id`
 - `originalRecordPresent`
 - `originalData`
+- `approval`
 - `changeSummary`
 - `auditHistory`
 
@@ -171,6 +172,12 @@ Each history item contains the derived fields below followed by every physical a
 
 Use a map-backed immutable DTO with safe Jackson flattening such as `@JsonAnyGetter`. Never reduce
 dynamic rows to a fixed projection.
+
+`approval` must always contain `approvalRecordPresent`, `makerUsername`, and `checkerUsername`.
+Discover optional `<SOURCE>_APPROVAL_REQUEST` and `<SOURCE>_APPROVAL` tables, with a configurable
+override map for naming exceptions. Match the numeric approval `ID` directly to the source ID and
+load only `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME` in one page-level query. Do not parse or
+return `PROPOSED_CHANGES`. Keep usernames for audit-only/deleted IDs when the approval row remains.
 
 State rules:
 
@@ -213,6 +220,11 @@ Success example:
           "ID": 1001,
           "VERSION": 2,
           "STATUS": "ACTIVE"
+        },
+        "approval": {
+          "approvalRecordPresent": true,
+          "makerUsername": "maker.user",
+          "checkerUsername": "checker.user"
         },
         "changeSummary": {
           "totalRevisions": 2,
@@ -310,12 +322,13 @@ Optimized warm-request flow:
    query using `COUNT(*) OVER()`.
 3. Fetch all current rows for the page with one query.
 4. Fetch all audit rows for the page with one query ordered by `ID, REV`.
-5. Group histories and accumulate operation counts in one Java pass.
+5. If an approval table exists, fetch ID/maker/checker for the page with one query.
+6. Group histories, approvals, and operation counts in one Java pass.
 
-Normal populated pages therefore use three database queries and no N+1 reads. Empty first pages
-skip source/history reads. An out-of-range page uses one fallback count because an empty Oracle
+Normal populated pages use three queries without approval or four with approval, and no N+1 reads.
+Empty first pages skip source/history/approval reads. An out-of-range page uses one fallback count because an empty Oracle
 window page has no total value. Load required columns for both tables in one metadata query and
-cache verified descriptors, never source/audit row data.
+cache verified descriptors, never row data.
 
 Use an immutable, null-safe `LinkedHashMap` snapshot because `Map.copyOf` rejects database nulls
 and need not preserve column order. Recommend an audit index beginning with `(ID, REV)`, subject to
@@ -327,6 +340,12 @@ Configure limits:
 audit-api:
   source-table-prefix: ${AUDIT_SOURCE_TABLE_PREFIX:PMC_}
   max-page-size: ${AUDIT_MAX_PAGE_SIZE:200}
+  approval:
+    suffixes: [_APPROVAL_REQUEST, _APPROVAL]
+    id-column: ID
+    maker-username-column: MAKER_USERNAME
+    checker-username-column: CHECKER_USERNAME
+    table-overrides: {}
 ```
 
 Centralize `ORACLE_IN_LIMIT = 1000`. Require the configured maximum to be positive and no greater

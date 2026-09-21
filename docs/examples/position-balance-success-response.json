@@ -28,6 +28,11 @@
           "METAL_CODE": "LARGE BAR",
           "TOTAL_AGGREGATED_QUANTITY": 0
         },
+        "approval": {
+          "approvalRecordPresent": true,
+          "makerUsername": "position.maker",
+          "checkerUsername": "position.checker"
+        },
         "changeSummary": {
           "totalRevisions": 2,
           "insertCount": 1,
@@ -91,6 +96,11 @@
           "LAST_LEDGER_ID_PROCESSED": 4006,
           "METAL_CODE": "LARGE BAR",
           "TOTAL_AGGREGATED_QUANTITY": 801
+        },
+        "approval": {
+          "approvalRecordPresent": false,
+          "makerUsername": null,
+          "checkerUsername": null
         },
         "changeSummary": {
           "totalRevisions": 1,

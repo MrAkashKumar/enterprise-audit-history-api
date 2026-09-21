@@ -14,11 +14,13 @@ public record AuditedRowResponse(
         Object id,
         boolean originalRecordPresent,
         Map<String, Object> originalData,
+        ApprovalResponse approval,
         ChangeSummary changeSummary,
         List<AuditRevisionResponse> auditHistory
 ) {
     public AuditedRowResponse {
         originalData = originalData == null ? null : DatabaseRowSnapshot.copyOf(originalData);
+        approval = approval == null ? ApprovalResponse.ABSENT : approval;
         auditHistory = List.copyOf(auditHistory);
     }
 }

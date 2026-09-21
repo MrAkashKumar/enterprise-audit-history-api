@@ -19,6 +19,10 @@ public final class ApiMessages {
             "Audit history retrieval completed [table={}, returnedRows={}, totalElements={}]";
     public static final String TABLE_METADATA_VERIFIED_LOG =
             "Audit table metadata verified [sourceTable={}, auditTable={}]";
+    public static final String APPROVAL_METADATA_VERIFIED_LOG =
+            "Approval table metadata verified [sourceTable={}, approvalTable={}]";
+    public static final String AMBIGUOUS_APPROVAL_TABLE =
+            "Multiple approval tables found for source table: ";
     public static final String DATABASE_FAILURE_LOG =
             "Database operation failed [exceptionType={}]";
     public static final String UNEXPECTED_FAILURE_LOG =
@@ -64,5 +68,13 @@ public final class ApiMessages {
 
     public static String duplicateTableLabel(String publicName) {
         return "Duplicate table label: " + publicName;
+    }
+
+    public static String configuredApprovalTableNotFound(String source, String approval) {
+        return "Configured approval table not found for " + source + ": " + approval;
+    }
+
+    public static String duplicateApprovalRecord(Object id) {
+        return "Multiple approval rows found for source ID: " + id;
     }
 }

@@ -3,6 +3,10 @@
 This document is the canonical request/response reference for Enterprise Audit History API.
 Values are illustrative; source and audit column names come from Oracle at runtime.
 
+For a larger complete-column example, see
+[position-balance-success-response.json](examples/position-balance-success-response.json). The
+application never reads this documentation file; actual response values always come from Oracle.
+
 ## Common contract
 
 The numeric protocol status is returned by HTTP and is not repeated in JSON. Every body contains
@@ -72,6 +76,11 @@ HTTP `200`:
           "VERSION": 2,
           "STATUS": "ACTIVE"
         },
+        "approval": {
+          "approvalRecordPresent": true,
+          "makerUsername": "maker.user",
+          "checkerUsername": "checker.user"
+        },
         "changeSummary": {
           "totalRevisions": 2,
           "insertCount": 1,
@@ -112,7 +121,18 @@ HTTP `200`:
 ```
 
 For a deleted entity, the same row has `originalRecordPresent: false`, `originalData: null`, and
-retains its complete `auditHistory`, including the `DELETE` revision. An empty result returns the
+retains its complete `auditHistory`, including the `DELETE` revision. Its retained approval row
+still supplies maker/checker usernames. If no matching approval table or row exists, the row uses:
+
+```json
+"approval": {
+  "approvalRecordPresent": false,
+  "makerUsername": null,
+  "checkerUsername": null
+}
+```
+
+An empty result returns the
 same pagination object with zero totals and `"rows": []`.
 
 ## 3. List holidays

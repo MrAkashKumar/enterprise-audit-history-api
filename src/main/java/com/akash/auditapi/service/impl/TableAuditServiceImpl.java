@@ -1,11 +1,14 @@
 package com.akash.auditapi.service.impl;
 
 import com.akash.auditapi.dao.AuditIdPage;
+import com.akash.auditapi.dao.ApprovalDao;
 import com.akash.auditapi.dao.TableAuditDao;
 import com.akash.auditapi.dto.TableDescriptor;
+import com.akash.auditapi.dto.ApprovalRecord;
 import com.akash.auditapi.dto.response.AuditedRowResponse;
 import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.resolver.AuditableTableCatalog;
+import com.akash.auditapi.resolver.ApprovalTableResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.service.AuditHistoryAssembler;
 import com.akash.auditapi.service.TableAuditService;
@@ -30,17 +33,23 @@ public class TableAuditServiceImpl implements TableAuditService {
     private final AuditableTableCatalog tableCatalog;
     private final TableDescriptorResolver tableResolver;
     private final TableAuditDao auditDao;
+    private final ApprovalDao approvalDao;
+    private final ApprovalTableResolver approvalTableResolver;
     private final PaginationValidator paginationValidator;
     private final AuditHistoryAssembler historyAssembler;
 
     public TableAuditServiceImpl(AuditableTableCatalog tableCatalog,
                                  TableDescriptorResolver tableResolver,
                                  TableAuditDao auditDao,
+                                 ApprovalDao approvalDao,
+                                 ApprovalTableResolver approvalTableResolver,
                                  PaginationValidator paginationValidator,
                                  AuditHistoryAssembler historyAssembler) {
         this.tableCatalog = tableCatalog;
         this.tableResolver = tableResolver;
         this.auditDao = auditDao;
+        this.approvalDao = approvalDao;
+        this.approvalTableResolver = approvalTableResolver;
         this.paginationValidator = paginationValidator;
         this.historyAssembler = historyAssembler;
     }
@@ -77,6 +86,13 @@ public class TableAuditServiceImpl implements TableAuditService {
             return List.of();
         }
         return historyAssembler.assemble(table, ids,
-                auditDao.findSourceRows(table, ids), auditDao.findAuditRows(table, ids));
+                auditDao.findSourceRows(table, ids), auditDao.findAuditRows(table, ids),
+                loadApprovalRows(table.sourceTable(), ids));
+    }
+
+    private List<ApprovalRecord> loadApprovalRows(String sourceTable, List<Object> ids) {
+        return approvalTableResolver.resolve(sourceTable)
+                .map(table -> approvalDao.findByIds(table, ids))
+                .orElseGet(List::of);
     }
 }

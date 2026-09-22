@@ -22,7 +22,6 @@ public final class AuditDefaults {
     public static final int ORACLE_IN_LIMIT = 1000;
     public static final String ORACLE_IDENTIFIER_REGEX = "[A-Z][A-Z0-9_$#]{0,127}";
     public static final String AUDIT_SUFFIX_REGEX = "_[A-Z0-9_$#]{1,127}";
-
     private AuditDefaults() {
     }
 }

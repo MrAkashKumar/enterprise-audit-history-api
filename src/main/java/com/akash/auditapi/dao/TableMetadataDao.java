@@ -8,7 +8,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Reads Oracle dictionary metadata for discoverable tables and required columns.
@@ -42,21 +41,6 @@ public class TableMetadataDao {
         return jdbcTemplate.queryForList(
                 FIND_SOURCE_TABLES_SQL, String.class, sourcePattern, auditPattern,
                 sourceTablePrefix);
-    }
-
-    public List<String> findApprovalTables(List<String> approvalSuffixes) {
-        if (approvalSuffixes.isEmpty()) {
-            return List.of();
-        }
-        String conditions = approvalSuffixes.stream()
-                .map(ignored -> "table_name like ? escape '\\'")
-                .collect(Collectors.joining(" or "));
-        String sql = "select table_name from user_tables where " + conditions
-                + " order by table_name";
-        Object[] patterns = approvalSuffixes.stream()
-                .map(suffix -> "%" + escapeLikeLiteral(suffix))
-                .toArray();
-        return jdbcTemplate.queryForList(sql, String.class, patterns);
     }
 
     public Set<String> findExistingTables(String sourceTable, String auditTable) {

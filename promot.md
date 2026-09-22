@@ -174,8 +174,8 @@ Use a map-backed immutable DTO with safe Jackson flattening such as `@JsonAnyGet
 dynamic rows to a fixed projection.
 
 `approval` must always contain `approvalRecordPresent`, `makerUsername`, and `checkerUsername`.
-Discover optional `<SOURCE>_APPROVAL_REQUEST` and `<SOURCE>_APPROVAL` tables, with a configurable
-override map for naming exceptions. Do not guess approval tables from partial or abbreviated names.
+Discover only exact `<SOURCE>_APPROVAL_REQUEST` and `<SOURCE>_APPROVAL` tables. Do not support
+override mappings or guess tables from partial or abbreviated names.
 Apply scale-neutral numeric normalization only when matching a response entity
 ID to an approval-table ID; do not change the existing source/audit grouping behavior. Then
 load only `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME` in one page-level query. Do not parse or
@@ -343,11 +343,9 @@ audit-api:
   source-table-prefix: ${AUDIT_SOURCE_TABLE_PREFIX:PMC_}
   max-page-size: ${AUDIT_MAX_PAGE_SIZE:200}
   approval:
-    suffixes: [_APPROVAL_REQUEST, _APPROVAL]
     id-column: ID
     maker-username-column: MAKER_USERNAME
     checker-username-column: CHECKER_USERNAME
-    table-overrides: {}
 ```
 
 Centralize `ORACLE_IN_LIMIT = 1000`. Require the configured maximum to be positive and no greater

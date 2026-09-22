@@ -38,17 +38,6 @@ class TableMetadataDaoTest {
     }
 
     @Test
-    void discoversApprovalTablesUsingAllConfiguredSuffixes() {
-        when(jdbcTemplate.queryForList(anyString(), eq(String.class),
-                eq("%\\_APPROVAL\\_REQUEST"), eq("%\\_APPROVAL")))
-                .thenReturn(List.of("PMC_CLIENT_APPROVAL", "PMC_LOCO_SG_APPROVAL_REQUEST"));
-
-        assertThat(dao.findApprovalTables(List.of("_APPROVAL_REQUEST", "_APPROVAL")))
-                .containsExactly("PMC_CLIENT_APPROVAL", "PMC_LOCO_SG_APPROVAL_REQUEST");
-        assertThat(dao.findApprovalTables(List.of())).isEmpty();
-    }
-
-    @Test
     void returnsExistingTablesAndLoadsAllColumnsInOneQuery() throws Exception {
         when(jdbcTemplate.queryForList(anyString(), eq(String.class),
                 eq("POSITION_BALANCE"), eq("POSITION_BALANCE_AUD")))

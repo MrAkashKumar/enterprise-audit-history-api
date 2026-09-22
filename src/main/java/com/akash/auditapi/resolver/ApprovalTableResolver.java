@@ -8,7 +8,6 @@ import com.akash.auditapi.validation.OracleIdentifierValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,7 +15,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import static com.akash.auditapi.exception.ApiMessages.AMBIGUOUS_APPROVAL_TABLE;
 import static com.akash.auditapi.exception.ApiMessages.APPROVAL_METADATA_VERIFIED_LOG;
-import static com.akash.auditapi.exception.ApiMessages.configuredApprovalTableNotFound;
+import static com.akash.auditapi.constants.AuditDefaults.APPROVAL_SUFFIXES;
 
 /**
  * Resolves an optional approval table and verifies its minimal projection columns.
@@ -44,20 +43,20 @@ public class ApprovalTableResolver {
     }
 
     private Optional<ApprovalTableDescriptor> resolveUncached(String source) {
-        String override = properties.tableOverrides().get(source);
-        Optional<String> resolvedTable = override == null
-                ? discoverApprovalTable(source)
-                : Optional.of(override);
-        if (resolvedTable.isEmpty()) {
-            return Optional.empty();
+        String table = null;
+        Set<String> columns = Set.of();
+        for (String suffix : APPROVAL_SUFFIXES) {
+            String candidate = identifierValidator.normalizeTableName(source + suffix);
+            Set<String> candidateColumns = metadataDao.findColumns(candidate);
+            if (!candidateColumns.isEmpty()) {
+                if (table != null) {
+                    throw new IllegalStateException(AMBIGUOUS_APPROVAL_TABLE + source);
+                }
+                table = candidate;
+                columns = candidateColumns;
+            }
         }
-
-        String table = resolvedTable.get();
-        Set<String> columns = metadataDao.findColumns(table);
-        if (override != null && columns.isEmpty()) {
-            throw new IllegalStateException(configuredApprovalTableNotFound(source, override));
-        }
-        if (columns.isEmpty()) {
+        if (table == null) {
             return Optional.empty();
         }
 
@@ -67,23 +66,6 @@ public class ApprovalTableResolver {
         log.info(APPROVAL_METADATA_VERIFIED_LOG, source, table);
         return Optional.of(new ApprovalTableDescriptor(table, properties.idColumn(),
                 properties.makerUsernameColumn(), properties.checkerUsernameColumn()));
-    }
-
-    private Optional<String> discoverApprovalTable(String source) {
-        List<String> discovered = metadataDao.findApprovalTables(properties.suffixes()).stream()
-                .map(identifierValidator::normalizeTableName)
-                .toList();
-        List<String> exact = properties.suffixes().stream()
-                .map(suffix -> identifierValidator.normalizeTableName(source + suffix))
-                .filter(discovered::contains)
-                .toList();
-        if (exact.size() > 1) {
-            throw new IllegalStateException(AMBIGUOUS_APPROVAL_TABLE + source);
-        }
-        if (!exact.isEmpty()) {
-            return Optional.of(exact.getFirst());
-        }
-        return Optional.empty();
     }
 
     private void requireColumn(Set<String> columns, String table, String column) {

@@ -72,10 +72,6 @@ public final class ApiMessages {
         return "Duplicate table label: " + publicName;
     }
 
-    public static String configuredApprovalTableNotFound(String source, String approval) {
-        return "Configured approval table not found for " + source + ": " + approval;
-    }
-
     public static String duplicateApprovalRecord(Object id) {
         return "Multiple approval rows found for source ID: " + id;
     }

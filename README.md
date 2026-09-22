@@ -466,9 +466,8 @@ Complete request bodies and every error response are maintained in
 
 Optional approval enrichment uses `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`. Each approval
 table must contain `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME`, and its numeric `ID` must equal
-the source entity ID. Exact conventional names are discovered automatically. When bases differ,
-for example `PMC_LOCO_SINGAPORE` and `PMC_LOCO_SG_APPROVAL_REQUEST`, configure an explicit
-`audit-api.approval.table-overrides` entry. Partial-name guessing is intentionally not used.
+the source entity ID. Only these exact suffix rules are supported; shortened or exceptional table
+names are intentionally not mapped.
 Approval failures return absent approval data without changing the existing source/audit response.
 
 No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
@@ -496,20 +495,9 @@ Important defaults:
 | `audit-api.audit-order-column` | `REV` | History ordering column |
 | `audit-api.revision-type-column` | `REVTYPE` | Envers operation code |
 | `audit-api.max-page-size` | `200` | Maximum IDs accepted per request |
-| `audit-api.approval.suffixes` | `_APPROVAL_REQUEST`, `_APPROVAL` | Approval naming conventions |
 | `audit-api.approval.id-column` | `ID` | Shared source/approval identifier |
 | `audit-api.approval.maker-username-column` | `MAKER_USERNAME` | Maker column |
 | `audit-api.approval.checker-username-column` | `CHECKER_USERNAME` | Checker column |
-| `audit-api.approval.table-overrides` | Empty map | Exceptional source-to-approval names |
-
-Example deployment override for differing base names:
-
-```yaml
-audit-api:
-  approval:
-    table-overrides:
-      PMC_LOCO_SINGAPORE: PMC_LOCO_SG_APPROVAL_REQUEST
-```
 
 The maximum page size cannot exceed Oracle's 1,000-expression `IN` limit. The lower default of
 200 also limits heap usage, connection occupancy, JSON size, and latency when each ID has many

@@ -333,14 +333,17 @@ GET /api/v1/allTable
 ```
 
 This endpoint has no request body and no pagination. It discovers source tables from Oracle
-`USER_TABLES` whose names start with the configured prefix (default `PMC_`) and do not end with
-the audit suffix (default `_AUD`). It returns only alphabetically sorted formatted labels; audit
-names are not exposed. This original catalog rule is unchanged; approval-suffixed tables are not
-silently removed from the result.
+`USER_TABLES` whose names start with the configured prefix (default `PMC_`), do not end with the
+audit suffix (default `_AUD`), and have their own exact `_AUD` companion. It returns only
+alphabetically sorted formatted labels; audit names are not exposed. Auditable approval-suffixed
+tables remain selectable.
 The table-list workflow does not call the approval resolver or approval DAO; approval enrichment
 is executed only by the paginated detail endpoint.
 The same label can be passed directly to the detail endpoint, for example
 `GET /api/v1/Loco-Singapore?pageNo=0&pageSize=10`.
+
+When an approval table is selected directly, its complete current row and complete `_AUD` history
+are returned. The service does not attempt a nested approval-table lookup.
 
 HTTP `200` response:
 

@@ -15,7 +15,6 @@ import com.akash.auditapi.resolver.ApprovalTableResolver;
 import com.akash.auditapi.resolver.EnversRevisionOperationResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.service.AuditHistoryAssembler;
-import com.akash.auditapi.service.ApprovalEnricher;
 import com.akash.auditapi.service.TableAuditService;
 import com.akash.auditapi.validation.PaginationValidator;
 import org.junit.jupiter.api.Test;
@@ -45,8 +44,7 @@ class TableAuditServiceImplTest {
     private final TableAuditService service = new TableAuditServiceImpl(
             tableCatalog, tableResolver, auditDao, approvalDao, approvalTableResolver,
             paginationValidator,
-            new AuditHistoryAssembler(new EnversRevisionOperationResolver()),
-            new ApprovalEnricher());
+            new AuditHistoryAssembler(new EnversRevisionOperationResolver()));
 
     @Test void returnsDynamicTableLabels() {
         when(tableCatalog.labels()).thenReturn(List.of("Account-Statement", "Position-Balance"));
@@ -307,6 +305,65 @@ class TableAuditServiceImplTest {
         assertThat(response.getRows().getFirst().auditHistory()).hasSize(1);
         assertThat(response.getRows().getFirst().approval()).isEqualTo(
                 com.akash.auditapi.dto.response.ApprovalResponse.ABSENT);
+    }
+
+    @Test void preservesIndependentlyNullableApprovalUsernames() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_CLIENT", "PMC_CLIENT_AUD", "ID", "REV", "REVTYPE");
+        ApprovalTableDescriptor approvalTable = new ApprovalTableDescriptor(
+                "PMC_CLIENT_APPROVAL", "ID", "MAKER_USERNAME", "CHECKER_USERNAME");
+        List<Object> ids = List.of(1, 2);
+        when(tableCatalog.resolve("PMC_CLIENT")).thenReturn("PMC_CLIENT");
+        when(tableResolver.resolve("PMC_CLIENT")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 2));
+        when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(
+                Map.of("ID", 1, "CLIENT_NAME", "One"),
+                Map.of("ID", 2, "CLIENT_NAME", "Two")));
+        when(auditDao.findAuditRows(table, ids)).thenReturn(List.of());
+        when(approvalTableResolver.resolve("PMC_CLIENT"))
+                .thenReturn(Optional.of(approvalTable));
+        when(approvalDao.findByIds(approvalTable, ids)).thenReturn(List.of(
+                new ApprovalRecord(1, null, "checker.user"),
+                new ApprovalRecord(2, null, null)));
+
+        SearchResponse response = service.sourceWithAuditHistory("PMC_CLIENT", 0, 10);
+
+        assertThat(response.getRows().get(0).approval().approvalRecordPresent()).isTrue();
+        assertThat(response.getRows().get(0).approval().makerUsername()).isNull();
+        assertThat(response.getRows().get(0).approval().checkerUsername())
+                .isEqualTo("checker.user");
+        assertThat(response.getRows().get(1).approval().approvalRecordPresent()).isTrue();
+        assertThat(response.getRows().get(1).approval().makerUsername()).isNull();
+        assertThat(response.getRows().get(1).approval().checkerUsername()).isNull();
+    }
+
+    @Test void returnsCompleteApprovalTableAndAuditWhenSelectedDirectly() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_CLIENT_APPROVAL", "PMC_CLIENT_APPROVAL_AUD", "ID", "REV", "REVTYPE");
+        List<Object> ids = List.of(11);
+        Map<String, Object> sourceRow = Map.of(
+                "ID", 11, "MAKER_USERNAME", "maker.user", "CHECKER_USERNAME", "checker.user",
+                "STATUS", "APPROVED", "COMMENTS", "Complete current data");
+        Map<String, Object> auditRow = Map.of(
+                "ID", 11, "REV", 901, "REVTYPE", 0,
+                "MAKER_USERNAME", "maker.user", "CHECKER_USERNAME", "checker.user",
+                "STATUS", "PENDING", "COMMENTS", "Complete historical data");
+        when(tableCatalog.resolve("PMC_CLIENT_APPROVAL")).thenReturn("PMC_CLIENT_APPROVAL");
+        when(tableResolver.resolve("PMC_CLIENT_APPROVAL")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 1));
+        when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(sourceRow));
+        when(auditDao.findAuditRows(table, ids)).thenReturn(List.of(auditRow));
+        when(approvalTableResolver.resolve("PMC_CLIENT_APPROVAL")).thenReturn(Optional.empty());
+
+        SearchResponse response = service.sourceWithAuditHistory("PMC_CLIENT_APPROVAL", 0, 10);
+
+        assertThat(response.getRows().getFirst().originalData()).isEqualTo(sourceRow);
+        assertThat(response.getRows().getFirst().auditHistory().getFirst().data())
+                .isEqualTo(auditRow);
+        assertThat(response.getRows().getFirst().approval()).isEqualTo(
+                com.akash.auditapi.dto.response.ApprovalResponse.ABSENT);
+        verify(approvalTableResolver).resolve("PMC_CLIENT_APPROVAL");
+        verifyNoInteractions(approvalDao);
     }
 
 }

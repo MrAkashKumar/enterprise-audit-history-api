@@ -5,6 +5,7 @@ import com.akash.auditapi.dao.ApprovalDao;
 import com.akash.auditapi.dao.TableAuditDao;
 import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.dto.ApprovalRecord;
+import com.akash.auditapi.dto.response.ApprovalResponse;
 import com.akash.auditapi.dto.response.AuditedRowResponse;
 import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.exception.AuditApiException;
@@ -12,7 +13,6 @@ import com.akash.auditapi.resolver.AuditableTableCatalog;
 import com.akash.auditapi.resolver.ApprovalTableResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.service.AuditHistoryAssembler;
-import com.akash.auditapi.service.ApprovalEnricher;
 import com.akash.auditapi.service.TableAuditService;
 import com.akash.auditapi.validation.PaginationValidator;
 import lombok.extern.slf4j.Slf4j;
@@ -20,12 +20,17 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_SEARCH_COMPLETED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_SEARCH_STARTED_LOG;
 import static com.akash.auditapi.exception.ApiMessages.AUDIT_TABLE_LIST_LOG;
 import static com.akash.auditapi.exception.ApiMessages.APPROVAL_ENRICHMENT_SKIPPED_LOG;
+import static com.akash.auditapi.exception.ApiMessages.NULL_ENTITY_ID;
+import static com.akash.auditapi.exception.ApiMessages.duplicateApprovalRecord;
 
 /**
  * Orchestrates validation, table resolution, JDBC reads, and audit response assembly.
@@ -41,7 +46,6 @@ public class TableAuditServiceImpl implements TableAuditService {
     private final ApprovalTableResolver approvalTableResolver;
     private final PaginationValidator paginationValidator;
     private final AuditHistoryAssembler historyAssembler;
-    private final ApprovalEnricher approvalEnricher;
 
     public TableAuditServiceImpl(AuditableTableCatalog tableCatalog,
                                  TableDescriptorResolver tableResolver,
@@ -49,8 +53,7 @@ public class TableAuditServiceImpl implements TableAuditService {
                                  ApprovalDao approvalDao,
                                  ApprovalTableResolver approvalTableResolver,
                                  PaginationValidator paginationValidator,
-                                 AuditHistoryAssembler historyAssembler,
-                                 ApprovalEnricher approvalEnricher) {
+                                 AuditHistoryAssembler historyAssembler) {
         this.tableCatalog = tableCatalog;
         this.tableResolver = tableResolver;
         this.auditDao = auditDao;
@@ -58,7 +61,6 @@ public class TableAuditServiceImpl implements TableAuditService {
         this.approvalTableResolver = approvalTableResolver;
         this.paginationValidator = paginationValidator;
         this.historyAssembler = historyAssembler;
-        this.approvalEnricher = approvalEnricher;
     }
 
     @Override
@@ -103,11 +105,43 @@ public class TableAuditServiceImpl implements TableAuditService {
             List<ApprovalRecord> approvalRows = approvalTableResolver.resolve(sourceTable)
                     .map(table -> approvalDao.findByIds(table, ids))
                     .orElseGet(List::of);
-            return approvalEnricher.enrich(rows, approvalRows);
+            return mergeApproval(rows, approvalRows);
         } catch (DataAccessException | AuditApiException | IllegalStateException exception) {
             log.warn(APPROVAL_ENRICHMENT_SKIPPED_LOG, sourceTable,
                     exception.getClass().getSimpleName());
             return rows;
         }
+    }
+
+    private List<AuditedRowResponse> mergeApproval(List<AuditedRowResponse> rows,
+                                                    List<ApprovalRecord> approvalRecords) {
+        if (approvalRecords.isEmpty()) {
+            return rows;
+        }
+        Map<String, ApprovalResponse> approvalById = new HashMap<>();
+        for (ApprovalRecord record : approvalRecords) {
+            ApprovalResponse previous = approvalById.putIfAbsent(approvalKey(record.id()),
+                    ApprovalResponse.present(record.makerUsername(), record.checkerUsername()));
+            if (previous != null) {
+                throw new IllegalStateException(duplicateApprovalRecord(record.id()));
+            }
+        }
+        return rows.stream().map(row -> copyWithApproval(row,
+                approvalById.getOrDefault(approvalKey(row.id()), ApprovalResponse.ABSENT))).toList();
+    }
+
+    private AuditedRowResponse copyWithApproval(AuditedRowResponse row, ApprovalResponse approval) {
+        return new AuditedRowResponse(row.id(), row.originalRecordPresent(), row.originalData(),
+                approval, row.changeSummary(), row.auditHistory());
+    }
+
+    private String approvalKey(Object id) {
+        if (id == null) {
+            throw new IllegalStateException(NULL_ENTITY_ID);
+        }
+        if (id instanceof Number number) {
+            return new BigDecimal(number.toString()).stripTrailingZeros().toPlainString();
+        }
+        return id.toString();
     }
 }

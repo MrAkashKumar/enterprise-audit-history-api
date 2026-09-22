@@ -152,6 +152,26 @@ An approved row containing both database usernames returns:
 }
 ```
 
+A row containing only a checker still remains present:
+
+```json
+"approval": {
+  "approvalRecordPresent": true,
+  "makerUsername": null,
+  "checkerUsername": "checker.user"
+}
+```
+
+If the approval row exists with both username values null, presence remains true:
+
+```json
+"approval": {
+  "approvalRecordPresent": true,
+  "makerUsername": null,
+  "checkerUsername": null
+}
+```
+
 An empty result returns the
 same pagination object with zero totals and `"rows": []`.
 

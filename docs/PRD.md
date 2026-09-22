@@ -126,8 +126,8 @@ GET /api/v1/allTable
 ```
 
 No request body or pagination is accepted. The API retains its original behavior: it queries Oracle
-`USER_TABLES`, selects names with the configured prefix (default `PMC_`), excludes only the
-configured audit suffix, and returns case-insensitively alphabetized labels under
+`USER_TABLES` and selects non-audit names with the configured prefix (default `PMC_`) only when
+their exact audit companion exists. It returns case-insensitively alphabetized labels under
 `data.tableLabels`. For example,
 `PMC_ACCOUNT_STATEMENT` becomes `Account-Statement`. Audit table names are not exposed.
 This endpoint must remain independent of approval metadata resolution and approval-row queries.
@@ -210,7 +210,8 @@ return `originalRecordPresent=false` and `originalData=null`.
 
 Supported original tables are discovered from `USER_TABLES` on each catalog request. There is no
 Java enum or configuration allowlist to maintain. Discovery uses the configured prefix and
-excludes names ending in the configured audit suffix. Labels are derived by removing the prefix,
+excludes names ending in the configured audit suffix, and requires each result to have its exact
+audit companion. Labels are derived by removing the prefix,
 splitting on underscores, title-casing each segment, and joining with `-`. The audit name is
 always derived internally as `<SOURCE_TABLE><AUDIT_SUFFIX>`.
 
@@ -305,7 +306,8 @@ Production JPA schema generation remains disabled.
   transaction boundaries, pagination, and orchestration.
 - `AuditableTableCatalog` owns dynamic discovery, label formatting, and name resolution.
 - `AuditHistoryAssembler` owns row indexing, audit grouping, revision sequencing, operation
-  resolution, approval merging, and change-summary construction.
+  resolution, and change-summary construction.
+- `TableAuditServiceImpl` applies optional maker/checker enrichment after source/audit assembly.
 - `ApprovalTableResolver` and `ApprovalDao` isolate optional metadata resolution and bulk username
   lookup without changing the controller contract.
 - DAO and JPA repository types exclusively own persistence access.

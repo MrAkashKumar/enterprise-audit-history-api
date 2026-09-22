@@ -334,7 +334,7 @@ GET /api/v1/allTable
 
 This endpoint has no request body and no pagination. It discovers source tables from Oracle
 `USER_TABLES` whose names start with the configured prefix (default `PMC_`), do not end with the
-audit suffix (default `_AUD`), and have their own exact `_AUD` companion. It returns only
+audit suffix (default `_AUD`). It returns all such tables as
 alphabetically sorted formatted labels; audit names are not exposed. Auditable approval-suffixed
 tables remain selectable.
 The table-list workflow does not call the approval resolver or approval DAO; approval enrichment
@@ -470,12 +470,13 @@ Complete request bodies and every error response are maintained in
 Optional approval enrichment uses `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`. Each approval
 table must contain `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME`, and its numeric `ID` must equal
 the source entity ID. A source uses one convention or the other, never both. The selected approval
-table must also have its own exact `<APPROVAL_TABLE>_AUD` companion. Only these exact suffix rules
-are supported; shortened or exceptional table names are intentionally not mapped.
+table does not need its own `_AUD` companion for maker/checker enrichment. Only these exact suffix
+rules are supported; shortened or exceptional table names are intentionally not mapped.
 Approval failures return absent approval data without changing the existing source/audit response.
 
-`/api/v1/allTable` returns only non-`_AUD` tables that have their own exact `_AUD` companion.
-Unpaired tables are ignored.
+`/api/v1/allTable` returns every dynamically discovered prefixed, non-`_AUD` table. The detail
+endpoint still requires the selected table to have its exact `_AUD` companion, so a catalog item
+without one cannot be queried for audit history.
 
 No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
 next request discovers the table dynamically.

@@ -126,12 +126,13 @@ GET /api/v1/allTable
 ```
 
 No request body or pagination is accepted. The API retains its original behavior: it queries Oracle
-`USER_TABLES` and selects non-audit names with the configured prefix (default `PMC_`) only when
-their exact audit companion exists. It returns case-insensitively alphabetized labels under
+`USER_TABLES` and selects every non-audit name with the configured prefix (default `PMC_`). It
+returns case-insensitively alphabetized labels under
 `data.tableLabels`. For example,
 `PMC_ACCOUNT_STATEMENT` becomes `Account-Statement`. Audit table names are not exposed.
 This endpoint must remain independent of approval metadata resolution and approval-row queries.
 Approval enrichment is an additive responsibility of the detail endpoint only.
+The detail endpoint separately requires the selected table's exact audit companion.
 
 ### 4.3 Holiday CRUD example
 
@@ -210,8 +211,7 @@ return `originalRecordPresent=false` and `originalData=null`.
 
 Supported original tables are discovered from `USER_TABLES` on each catalog request. There is no
 Java enum or configuration allowlist to maintain. Discovery uses the configured prefix and
-excludes names ending in the configured audit suffix, and requires each result to have its exact
-audit companion. Labels are derived by removing the prefix,
+excludes names ending in the configured audit suffix. Labels are derived by removing the prefix,
 splitting on underscores, title-casing each segment, and joining with `-`. The audit name is
 always derived internally as `<SOURCE_TABLE><AUDIT_SUFFIX>`.
 
@@ -293,8 +293,9 @@ load-test percentiles.
 | `audit-api.source-table-prefix` / `AUDIT_SOURCE_TABLE_PREFIX` | Source-table discovery prefix |
 | `audit-api.max-page-size` / `AUDIT_MAX_PAGE_SIZE` | Maximum accepted page size |
 Approval tables follow fixed exact naming: `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`.
-A source uses exactly one of these conventions, not both, and that approval table must have its own
-`<APPROVAL_TABLE>_AUD` companion. Exceptional, abbreviated, and unpaired names are not mapped.
+A source uses exactly one of these conventions, not both. The approval table needs the configured
+ID, maker, and checker columns, but no approval `_AUD` companion is required for source-row
+enrichment. Exceptional and abbreviated names are not mapped.
 
 Secrets must come from environment or an enterprise secret manager and must never be committed.
 Production JPA schema generation remains disabled.

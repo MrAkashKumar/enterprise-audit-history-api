@@ -17,25 +17,20 @@ import static org.mockito.Mockito.when;
 
 class TableMetadataDaoTest {
     private static final String FIND_SOURCE_TABLES_SQL = """
-            select source_table.table_name
-            from user_tables source_table
-            where source_table.table_name like ? escape '\\'
-              and source_table.table_name not like ? escape '\\'
-              and source_table.table_name <> ?
-              and exists (
-                  select 1
-                  from user_tables audit_table
-                  where audit_table.table_name = source_table.table_name || ?
-              )
-            order by source_table.table_name
+            select table_name
+            from user_tables
+            where table_name like ? escape '\\'
+              and table_name not like ? escape '\\'
+              and table_name <> ?
+            order by table_name
             """;
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final TableMetadataDao dao = new TableMetadataDao(jdbcTemplate);
 
     @Test
-    void discoversOnlySourceTablesUsingEscapedPrefixAndAuditSuffix() {
+    void discoversEveryNonAuditTableUsingEscapedPrefixAndAuditSuffix() {
         when(jdbcTemplate.queryForList(eq(FIND_SOURCE_TABLES_SQL), eq(String.class),
-                eq("PMC\\_%"), eq("%\\_AUD"), eq("PMC_"), eq("_AUD")))
+                eq("PMC\\_%"), eq("%\\_AUD"), eq("PMC_")))
                 .thenReturn(List.of("PMC_ACCOUNT_STATEMENT", "PMC_POSITION_BALANCE"));
 
         assertThat(dao.findSourceTables("PMC_", "_AUD"))

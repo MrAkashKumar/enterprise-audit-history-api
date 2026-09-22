@@ -466,9 +466,13 @@ Complete request bodies and every error response are maintained in
 
 Optional approval enrichment uses `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`. Each approval
 table must contain `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME`, and its numeric `ID` must equal
-the source entity ID. Only these exact suffix rules are supported; shortened or exceptional table
-names are intentionally not mapped.
+the source entity ID. A source uses one convention or the other, never both. The selected approval
+table must also have its own exact `<APPROVAL_TABLE>_AUD` companion. Only these exact suffix rules
+are supported; shortened or exceptional table names are intentionally not mapped.
 Approval failures return absent approval data without changing the existing source/audit response.
+
+`/api/v1/allTable` returns only non-`_AUD` tables that have their own exact `_AUD` companion.
+Unpaired tables are ignored.
 
 No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
 next request discovers the table dynamically.

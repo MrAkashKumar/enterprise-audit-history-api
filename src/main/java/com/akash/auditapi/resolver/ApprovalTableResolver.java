@@ -1,6 +1,7 @@
 package com.akash.auditapi.resolver;
 
 import com.akash.auditapi.config.ApprovalProperties;
+import com.akash.auditapi.config.AuditApiProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
 import com.akash.auditapi.dto.ApprovalTableDescriptor;
 import com.akash.auditapi.exception.MissingAuditColumnException;
@@ -26,14 +27,17 @@ import static com.akash.auditapi.constants.AuditDefaults.APPROVAL_SUFFIXES;
 public class ApprovalTableResolver {
     private final TableMetadataDao metadataDao;
     private final ApprovalProperties properties;
+    private final AuditApiProperties auditProperties;
     private final OracleIdentifierValidator identifierValidator;
     private final ConcurrentMap<String, Optional<ApprovalTableDescriptor>> cache =
             new ConcurrentHashMap<>();
 
     public ApprovalTableResolver(TableMetadataDao metadataDao, ApprovalProperties properties,
+                                 AuditApiProperties auditProperties,
                                  OracleIdentifierValidator identifierValidator) {
         this.metadataDao = metadataDao;
         this.properties = properties;
+        this.auditProperties = auditProperties;
         this.identifierValidator = identifierValidator;
     }
 
@@ -43,10 +47,18 @@ public class ApprovalTableResolver {
     }
 
     private Optional<ApprovalTableDescriptor> resolveUncached(String source) {
+        if (APPROVAL_SUFFIXES.stream().anyMatch(source::endsWith)) {
+            return Optional.empty();
+        }
         String table = null;
         Set<String> columns = Set.of();
         for (String suffix : APPROVAL_SUFFIXES) {
             String candidate = identifierValidator.normalizeTableName(source + suffix);
+            String candidateAudit = identifierValidator.normalizeTableName(
+                    candidate + auditProperties.auditSuffix());
+            if (metadataDao.findExistingTables(candidate, candidateAudit).size() != 2) {
+                continue;
+            }
             Set<String> candidateColumns = metadataDao.findColumns(candidate);
             if (!candidateColumns.isEmpty()) {
                 if (table != null) {

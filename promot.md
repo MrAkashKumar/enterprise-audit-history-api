@@ -175,7 +175,8 @@ dynamic rows to a fixed projection.
 
 `approval` must always contain `approvalRecordPresent`, `makerUsername`, and `checkerUsername`.
 Discover only exact `<SOURCE>_APPROVAL_REQUEST` and `<SOURCE>_APPROVAL` tables. Do not support
-override mappings or guess tables from partial or abbreviated names.
+override mappings or guess tables from partial or abbreviated names. A source must use exactly one
+approval suffix, never both, and the selected approval table must have its own `_AUD` companion.
 Apply scale-neutral numeric normalization only when matching a response entity
 ID to an approval-table ID; do not change the existing source/audit grouping behavior. Then
 load only `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME` in one page-level query. Do not parse or

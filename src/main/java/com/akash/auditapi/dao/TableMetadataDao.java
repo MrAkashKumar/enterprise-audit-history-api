@@ -16,12 +16,17 @@ import java.util.Set;
 @Repository
 public class TableMetadataDao {
     private static final String FIND_SOURCE_TABLES_SQL = """
-            select table_name
-            from user_tables
-            where table_name like ? escape '\\'
-              and table_name not like ? escape '\\'
-              and table_name <> ?
-            order by table_name
+            select source_table.table_name
+            from user_tables source_table
+            where source_table.table_name like ? escape '\\'
+              and source_table.table_name not like ? escape '\\'
+              and source_table.table_name <> ?
+              and exists (
+                  select 1
+                  from user_tables audit_table
+                  where audit_table.table_name = source_table.table_name || ?
+              )
+            order by source_table.table_name
             """;
     private static final String FIND_TABLES_SQL =
             "select table_name from user_tables where table_name in (?, ?)";
@@ -40,7 +45,7 @@ public class TableMetadataDao {
         String auditPattern = "%" + escapeLikeLiteral(auditSuffix);
         return jdbcTemplate.queryForList(
                 FIND_SOURCE_TABLES_SQL, String.class, sourcePattern, auditPattern,
-                sourceTablePrefix);
+                sourceTablePrefix, auditSuffix);
     }
 
     public Set<String> findExistingTables(String sourceTable, String auditTable) {

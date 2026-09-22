@@ -292,7 +292,8 @@ load-test percentiles.
 | `audit-api.source-table-prefix` / `AUDIT_SOURCE_TABLE_PREFIX` | Source-table discovery prefix |
 | `audit-api.max-page-size` / `AUDIT_MAX_PAGE_SIZE` | Maximum accepted page size |
 Approval tables follow fixed exact naming: `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`.
-Exceptional and abbreviated names are not mapped.
+A source uses exactly one of these conventions, not both, and that approval table must have its own
+`<APPROVAL_TABLE>_AUD` companion. Exceptional, abbreviated, and unpaired names are not mapped.
 
 Secrets must come from environment or an enterprise secret manager and must never be committed.
 Production JPA schema generation remains disabled.

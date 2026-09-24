@@ -20,7 +20,7 @@ import static org.mockito.Mockito.when;
 
 class ApprovalDaoTest {
     private final NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
-    private final ApprovalDao dao = new ApprovalDao(jdbcTemplate, new ApprovalSqlBuilder());
+    private final ApprovalDao dao = new ApprovalDao(jdbcTemplate);
     private final ApprovalTableDescriptor table = new ApprovalTableDescriptor(
             "PMC_CLIENT_APPROVAL", "ID", "MAKER_USERNAME", "CHECKER_USERNAME");
 
@@ -41,7 +41,8 @@ class ApprovalDaoTest {
                 org.mockito.ArgumentMatchers.<RowMapper<ApprovalRecord>>any()))
                 .thenAnswer(invocation -> {
                     assertThat(invocation.getArgument(0, String.class))
-                            .contains("from PMC_CLIENT_APPROVAL where ID in (:ids)");
+                            .isEqualTo("select ID, MAKER_USERNAME, CHECKER_USERNAME "
+                                    + "from PMC_CLIENT_APPROVAL where ID in (:ids) order by ID");
                     MapSqlParameterSource parameters = invocation.getArgument(1);
                     assertThat(parameters.getValue("ids")).isEqualTo(List.of(10));
                     RowMapper<ApprovalRecord> mapper = invocation.getArgument(2);

@@ -45,14 +45,29 @@ class ApprovalTableResolverTest {
     }
 
     @Test
-    void returnsAndCachesEmptyWhenNoSafeApprovalMatchExists() {
+    void rechecksMetadataWhenNoSafeApprovalMatchExists() {
         noColumns("PMC_VAULT_APPROVAL_REQUEST");
         noColumns("PMC_VAULT_APPROVAL");
 
         assertThat(resolver.resolve("PMC_VAULT")).isEmpty();
         assertThat(resolver.resolve("pmc_vault")).isEmpty();
-        verify(metadataDao, times(1)).findColumns("PMC_VAULT_APPROVAL_REQUEST");
-        verify(metadataDao, times(1)).findColumns("PMC_VAULT_APPROVAL");
+        verify(metadataDao, times(2)).findColumns("PMC_VAULT_APPROVAL_REQUEST");
+        verify(metadataDao, times(2)).findColumns("PMC_VAULT_APPROVAL");
+    }
+
+    @Test
+    void detectsApprovalTableCreatedAfterAnEarlierMiss() {
+        String requestTable = "PMC_LIMIT_APPROVAL_REQUEST";
+        String approvalTable = "PMC_LIMIT_APPROVAL";
+        when(metadataDao.findColumns(requestTable))
+                .thenReturn(Set.of())
+                .thenReturn(Set.of("ID", "MAKER_USERNAME", "CHECKER_USERNAME"));
+        noColumns(approvalTable);
+
+        assertThat(resolver.resolve("PMC_LIMIT")).isEmpty();
+        assertThat(resolver.resolve("PMC_LIMIT"))
+                .map(ApprovalTableDescriptor::tableName)
+                .contains(requestTable);
     }
 
     @Test

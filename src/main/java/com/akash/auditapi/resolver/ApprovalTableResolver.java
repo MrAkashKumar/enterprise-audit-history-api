@@ -19,7 +19,7 @@ import static com.akash.auditapi.constants.AuditDefaults.APPROVAL_SUFFIXES;
 
 /**
  * Resolves an optional approval table and verifies its minimal projection columns.
- * Both positive and absent metadata results are cached per source table.
+ * Only verified descriptors are cached, so a table created after startup is discovered.
  */
 @Component
 @Slf4j
@@ -27,8 +27,7 @@ public class ApprovalTableResolver {
     private final TableMetadataDao metadataDao;
     private final ApprovalProperties properties;
     private final OracleIdentifierValidator identifierValidator;
-    private final ConcurrentMap<String, Optional<ApprovalTableDescriptor>> cache =
-            new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ApprovalTableDescriptor> cache = new ConcurrentHashMap<>();
 
     public ApprovalTableResolver(TableMetadataDao metadataDao, ApprovalProperties properties,
                                  OracleIdentifierValidator identifierValidator) {
@@ -39,7 +38,18 @@ public class ApprovalTableResolver {
 
     public Optional<ApprovalTableDescriptor> resolve(String sourceTable) {
         String source = identifierValidator.normalizeTableName(sourceTable);
-        return cache.computeIfAbsent(source, this::resolveUncached);
+        ApprovalTableDescriptor cached = cache.get(source);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+
+        Optional<ApprovalTableDescriptor> resolved = resolveUncached(source);
+        if (resolved.isEmpty()) {
+            return resolved;
+        }
+        ApprovalTableDescriptor descriptor = resolved.get();
+        cache.putIfAbsent(source, descriptor);
+        return Optional.of(cache.get(source));
     }
 
     private Optional<ApprovalTableDescriptor> resolveUncached(String source) {

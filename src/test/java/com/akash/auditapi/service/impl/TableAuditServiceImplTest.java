@@ -12,7 +12,6 @@ import com.akash.auditapi.dto.response.SearchResponse;
 import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.resolver.AuditableTableCatalog;
 import com.akash.auditapi.resolver.ApprovalTableResolver;
-import com.akash.auditapi.resolver.EnversRevisionOperationResolver;
 import com.akash.auditapi.resolver.TableDescriptorResolver;
 import com.akash.auditapi.service.AuditHistoryAssembler;
 import com.akash.auditapi.service.TableAuditService;
@@ -44,7 +43,7 @@ class TableAuditServiceImplTest {
     private final TableAuditService service = new TableAuditServiceImpl(
             tableCatalog, tableResolver, auditDao, approvalDao, approvalTableResolver,
             paginationValidator,
-            new AuditHistoryAssembler(new EnversRevisionOperationResolver()));
+            new AuditHistoryAssembler());
 
     @Test void returnsDynamicTableLabels() {
         when(tableCatalog.labels()).thenReturn(List.of("Account-Statement", "Position-Balance"));

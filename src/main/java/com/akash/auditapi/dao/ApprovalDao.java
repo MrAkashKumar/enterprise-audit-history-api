@@ -14,23 +14,29 @@ import java.util.List;
  */
 @Repository
 public class ApprovalDao {
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final ApprovalSqlBuilder sqlBuilder;
+    private static final String ROWS_SQL =
+            "select %1$s, %2$s, %3$s from %4$s where %1$s in (:ids) order by %1$s";
 
-    public ApprovalDao(NamedParameterJdbcTemplate jdbcTemplate, ApprovalSqlBuilder sqlBuilder) {
+    private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    public ApprovalDao(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.sqlBuilder = sqlBuilder;
     }
 
     public List<ApprovalRecord> findByIds(ApprovalTableDescriptor table, List<Object> ids) {
         if (ids.isEmpty()) {
             return List.of();
         }
-        return jdbcTemplate.query(sqlBuilder.rows(table),
+        return jdbcTemplate.query(rowsSql(table),
                 new MapSqlParameterSource("ids", ids),
                 (resultSet, rowNumber) -> new ApprovalRecord(
                         resultSet.getObject(table.idColumn()),
                         resultSet.getString(table.makerUsernameColumn()),
                         resultSet.getString(table.checkerUsernameColumn())));
+    }
+
+    private String rowsSql(ApprovalTableDescriptor table) {
+        return ROWS_SQL.formatted(table.idColumn(), table.makerUsernameColumn(),
+                table.checkerUsernameColumn(), table.tableName());
     }
 }

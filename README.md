@@ -83,7 +83,7 @@ src/main/java/com/akash/auditapi
 ├── enums               Response codes and revision operations
 ├── exception           Typed application errors and error DTOs
 ├── exceptionHandlers   Central REST exception mapping
-├── resolver            Table metadata and REVTYPE resolution
+├── resolver            Source, audit, approval, and catalog metadata resolution
 ├── service             Business contracts and response assembly
 │   └── impl            Service implementations
 └── validation          Pagination and Oracle identifier validation
@@ -100,17 +100,17 @@ The backend keeps responsibilities small and uses constructor injection througho
 | `TableAuditServiceImpl` | Validates input and coordinates catalog, metadata, pagination, DAO, and assembly |
 | `AuditHistoryAssembler` | Groups source/audit rows by ID and builds immutable response DTOs |
 | `TableAuditDao` | Executes parameterized source and audit queries |
-| `ApprovalTableResolver` | Resolves and caches optional `_APPROVAL_REQUEST`/`_APPROVAL` metadata |
+| `ApprovalTableResolver` | Resolves optional `_APPROVAL_REQUEST`/`_APPROVAL` metadata and caches verified matches |
 | `ApprovalDao` | Loads only ID, maker, and checker for all IDs on the current page |
 | `AuditableTableCatalog` | Discovers source tables and resolves physical names and public labels |
 | `TableDescriptorResolver` | Verifies the source/audit pair and required metadata |
-| `RevisionOperationResolver` | Strategy abstraction for mapping `REVTYPE` to an operation |
+| `RevisionOperation` | Maps Envers-compatible `REVTYPE` values to response operations |
 | `GlobalExceptionHandler` | Creates and maps application/framework errors to the common response |
 
-This applies the Single Responsibility and Dependency Inversion principles. The resolver is a
-Strategy, consistent error construction stays in the global handler, and database access remains
-behind DAO/Repository boundaries. Add behavior to the responsible component rather than adding
-table-specific branches to the controller or service.
+This applies the Single Responsibility and Dependency Inversion principles. Consistent error
+construction stays in the global handler, and database access remains behind DAO/Repository
+boundaries. Add behavior to the responsible component rather than adding table-specific branches
+to the controller or service.
 
 ### Audit logging
 
@@ -551,8 +551,9 @@ A warm generic audit request performs:
 This removes one database round trip from normal requests. A page beyond the available range uses
 one fallback count query because Oracle returns no window-count value for an empty result page.
 Empty pages skip the source, history, and approval queries. Successfully verified audit and
-approval descriptors are cached, and required columns are loaded in one metadata query during
-first resolution; row data are never cached. Revision summaries are accumulated while history is grouped rather
+approval descriptors are cached only after successful verification; missing approval metadata is
+rechecked on the next request so tables created at runtime can be discovered. Required columns are
+loaded in one metadata query during resolution; row data are never cached. Revision summaries are accumulated while history is grouped rather
 than by rescanning each entity history. Audit indexes should begin with `(ID, REV)`, subject to DBA
 review of existing indexes and real execution plans.
 

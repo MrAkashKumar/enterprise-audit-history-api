@@ -6,7 +6,6 @@ import com.akash.auditapi.dto.response.AuditRevisionResponse;
 import com.akash.auditapi.dto.response.AuditedRowResponse;
 import com.akash.auditapi.dto.response.ApprovalResponse;
 import com.akash.auditapi.enums.RevisionOperation;
-import com.akash.auditapi.resolver.RevisionOperationResolver;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -22,12 +21,6 @@ import static com.akash.auditapi.exception.ApiMessages.NULL_ENTITY_ID;
  */
 @Component
 public class AuditHistoryAssembler {
-    private final RevisionOperationResolver operationResolver;
-
-    public AuditHistoryAssembler(RevisionOperationResolver operationResolver) {
-        this.operationResolver = operationResolver;
-    }
-
     public List<AuditedRowResponse> assemble(TableDescriptor table, List<Object> ids,
                                               List<Map<String, Object>> sourceRows,
                                               List<Map<String, Object>> auditRows) {
@@ -63,7 +56,7 @@ public class AuditHistoryAssembler {
             String entityKey = entityKey(row.get(table.idColumn()));
             HistoryAccumulator history = historyById.computeIfAbsent(
                     entityKey, ignored -> new HistoryAccumulator());
-            RevisionOperation operation = operationResolver.resolve(row.get(table.revisionTypeColumn()));
+            RevisionOperation operation = RevisionOperation.from(row.get(table.revisionTypeColumn()));
             history.add(new AuditRevisionResponse(
                     history.size() + 1, row.get(table.auditOrderColumn()),
                     operation.code(), operation, row));

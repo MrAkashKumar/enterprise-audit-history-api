@@ -281,8 +281,9 @@ size, and latency because one ID may expand into many audit snapshots.
 A warm audit request executes one ID-page query with an Oracle window count, one current-row query,
 one audit-row query, and—only when supported—one narrow approval query. This removes the separate count round trip for normal pages. A page beyond
 the available range performs one fallback count because an empty page has no window-count row.
-Empty pages skip source, audit, and approval-row loading. Verified descriptors are cached, required
-columns are fetched together during first resolution, and row data are never cached.
+Empty pages skip source, audit, and approval-row loading. Verified descriptors are cached, while a
+missing approval-table result is rechecked on the next request. Required columns are fetched
+together during resolution, and row data are never cached.
 Revision summaries are accumulated in the same pass that groups history. Recommended audit
 indexing begins with `(ID, REV)` and must be checked against actual Oracle execution plans and
 load-test percentiles.
@@ -316,13 +317,12 @@ Production JPA schema generation remains disabled.
 - `ApprovalTableResolver` and `ApprovalDao` isolate optional metadata resolution and bulk username
   lookup without changing the controller contract.
 - DAO and JPA repository types exclusively own persistence access.
-- `RevisionOperationResolver` provides the operation-mapping Strategy and is injected by
-  interface.
+- `RevisionOperation` centrally maps Envers-compatible `REVTYPE` values to response operations.
 - `GlobalExceptionHandler` centrally creates the common error envelope.
 - Components use constructor injection and must not depend on controller or transport details.
 
 These boundaries implement Single Responsibility and Dependency Inversion and must be preserved
-when another source table or revision scheme is introduced.
+when another source table is introduced.
 
 ## 11. Testing and dummy-data policy
 

@@ -55,8 +55,8 @@ Apply maintainable boundaries and SOLID principles:
 - Put source indexing, audit grouping, revision sequencing, and summary construction in a focused
   `AuditHistoryAssembler`.
 - Hide database access behind DAO/JPA repository boundaries.
-- Inject a `RevisionOperationResolver` Strategy instead of branching on revision schemes in the
-  service.
+- Map Envers-compatible `REVTYPE` values centrally through `RevisionOperation` instead of
+  branching in the service.
 - Create the common error envelope centrally in `GlobalExceptionHandler`.
 - Use constructor injection and keep dependencies directed toward interfaces or focused
   collaborators.

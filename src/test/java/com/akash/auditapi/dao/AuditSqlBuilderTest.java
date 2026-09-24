@@ -22,4 +22,21 @@ class AuditSqlBuilderTest {
         assertThat(builder.auditRows(table))
                 .isEqualTo("select * from POSITION_BALANCE_AUD where ID in (:ids) order by ID, REV");
     }
+
+    @Test
+    void buildsSourceOnlyPaginationWhenAuditTableDoesNotExist() {
+        TableDescriptor sourceOnly = new TableDescriptor(
+                "PMC_CLIENT_PRODUCT_LIMIT", null, "ID", null, null);
+
+        assertThat(builder.countDistinctIds(sourceOnly))
+                .isEqualTo("select count(*) from (select ID ENTITY_ID from "
+                        + "PMC_CLIENT_PRODUCT_LIMIT where ID is not null)");
+        assertThat(builder.pageIds(sourceOnly))
+                .contains("from (select ID ENTITY_ID from PMC_CLIENT_PRODUCT_LIMIT "
+                        + "where ID is not null)")
+                .doesNotContain("union", "_AUD");
+        assertThat(builder.sourceRows(sourceOnly))
+                .isEqualTo("select * from PMC_CLIENT_PRODUCT_LIMIT "
+                        + "where ID in (:ids) order by ID, ID");
+    }
 }

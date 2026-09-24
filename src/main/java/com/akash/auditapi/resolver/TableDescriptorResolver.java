@@ -2,11 +2,11 @@ package com.akash.auditapi.resolver;
 
 import com.akash.auditapi.config.AuditApiProperties;
 import com.akash.auditapi.dao.TableMetadataDao;
-import com.akash.auditapi.exception.AuditTableNotFoundException;
+import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.enums.ApiOutcomeCode;
+import com.akash.auditapi.exception.AuditTableNotFoundException;
 import com.akash.auditapi.exception.InvalidRequestException;
 import com.akash.auditapi.exception.MissingAuditColumnException;
-import com.akash.auditapi.dto.TableDescriptor;
 import com.akash.auditapi.validation.OracleIdentifierValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,8 +21,8 @@ import static com.akash.auditapi.exception.ApiMessages.TABLE_METADATA_VERIFIED_L
 import static com.akash.auditapi.exception.ApiMessages.tablePairNotFound;
 
 /**
- * Verifies source/audit table pairs and their mandatory columns against Oracle metadata.
- * Successfully verified immutable descriptors are cached for later queries.
+ * Verifies source tables and optional audit metadata against Oracle metadata.
+ * Successfully verified audit-enabled descriptors are cached for later queries.
  */
 @Component
 @Slf4j
@@ -45,18 +45,30 @@ public class TableDescriptorResolver {
             throw new InvalidRequestException(ApiOutcomeCode.AUDIT_TABLE_NOT_ACCEPTED,
                     SOURCE_TABLE_REQUIRED);
         }
-        return descriptorCache.computeIfAbsent(source, this::resolveVerifiedDescriptor);
+        TableDescriptor cached = descriptorCache.get(source);
+        if (cached != null) {
+            return cached;
+        }
+        TableDescriptor descriptor = resolveVerifiedDescriptor(source);
+        if (!descriptor.hasAuditHistory()) {
+            return descriptor;
+        }
+        descriptorCache.putIfAbsent(source, descriptor);
+        return descriptorCache.get(source);
     }
 
     private TableDescriptor resolveVerifiedDescriptor(String source) {
         String audit = identifierValidator.normalizeTableName(source + properties.auditSuffix());
         Set<String> existingTables = metadataDao.findExistingTables(source, audit);
-        if (!existingTables.contains(source) || !existingTables.contains(audit)) {
+        if (!existingTables.contains(source)) {
             throw new AuditTableNotFoundException(tablePairNotFound(source, audit));
         }
 
         Map<String, Set<String>> columnsByTable = metadataDao.findColumnsByTable(source, audit);
         requireColumn(columnsByTable, source, properties.idColumn());
+        if (!existingTables.contains(audit)) {
+            return new TableDescriptor(source, null, properties.idColumn(), null, null);
+        }
         requireColumn(columnsByTable, audit, properties.idColumn());
         requireColumn(columnsByTable, audit, properties.auditOrderColumn());
         requireColumn(columnsByTable, audit, properties.revisionTypeColumn());

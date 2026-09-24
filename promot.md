@@ -12,9 +12,9 @@ project, create `enterprise-audit-history-api` using Maven.
 
 ## 1. Goal and scope
 
-Create a reusable, read-focused Spring Boot API that returns complete current rows from dynamically
-Oracle source tables together with complete history from their existing audit tables. One generic
-endpoint must support all discovered source tables without a separate entity, repository,
+Create a reusable, read-focused Spring Boot API that returns complete current rows from dynamic
+Oracle source tables together with complete history when their audit tables exist. One generic
+endpoint must support audited and source-only tables without a separate entity, repository,
 service, controller, or fixed-column DTO for each table.
 
 Example pair:
@@ -103,9 +103,12 @@ The GET request has no body. Requirements:
 - Use `pageSize`, default `10`.
 - Validate `pageNo >= 0` and `1 <= pageSize <= configured maximum`.
 - Derive the audit table with the configurable suffix, default `_AUD`.
-- Page by distinct IDs across the union of source and audit tables.
+- Page by distinct IDs across the union of source and audit tables when `_AUD` exists; otherwise
+  page directly from the source table.
 - Include audit-only IDs so deleted records remain discoverable.
 - Fetch complete source and audit rows using `SELECT *`.
+- When `_AUD` does not exist, return complete source rows with empty `auditHistory` and a zero-valued
+  `changeSummary`. If `_AUD` exists but lacks required columns, return a configuration error.
 - Group current data and history by the shared ID.
 - Order each entity history by `REV` ascending.
 - Assign `sequenceNumber` from 1 independently for each entity.

@@ -94,8 +94,11 @@ public class TableAuditServiceImpl implements TableAuditService {
         if (ids.isEmpty()) {
             return List.of();
         }
+        List<Map<String, Object>> auditRows = table.hasAuditHistory()
+                ? auditDao.findAuditRows(table, ids)
+                : List.of();
         List<AuditedRowResponse> rows = historyAssembler.assemble(table, ids,
-                auditDao.findSourceRows(table, ids), auditDao.findAuditRows(table, ids));
+                auditDao.findSourceRows(table, ids), auditRows);
         return enrichWithApproval(table.sourceTable(), ids, rows);
     }
 

@@ -1,15 +1,15 @@
 # Enterprise Audit History API
 
-Java 21 and Spring Boot service for retrieving an Oracle source row together with its complete
-Hibernate Envers audit history. It supports multiple discovered source/audit table pairs through one
-generic endpoint and does not create, update, or seed Oracle audit data.
+Java 21 and Spring Boot service for retrieving Oracle source rows together with complete Hibernate
+Envers history when an audit table exists. It supports both audited and source-only tables through
+one generic endpoint and does not create, update, or seed Oracle audit data.
 
 The authoritative requirements and acceptance criteria are in [docs/PRD.md](docs/PRD.md).
 
 ## Key capabilities
 
 - Dynamic source-table discovery from Oracle `USER_TABLES`; no Java table enum or allowlist.
-- Generic source and `<TABLE>_AUD` lookup for discovered Oracle tables.
+- Generic source lookup with optional `<TABLE>_AUD` history for discovered Oracle tables.
 - Full `SELECT *` source and audit snapshots without table-specific response classes.
 - History grouped by entity ID and ordered by Envers revision.
 - `REVTYPE` mapping: `0=INSERT`, `1=UPDATE`, `2=DELETE`, other values=`UNKNOWN`.
@@ -40,9 +40,9 @@ Oracle row-level audit trigger
 Enterprise Audit History API (read only)
 ```
 
-For every exposed source table, the Oracle database provides a corresponding `<TABLE>_AUD` table
-and row-level trigger. The trigger writes a full snapshot with the entity `ID`, revision `REV`, and
-operation `REVTYPE`:
+For audited source tables, Oracle provides a corresponding `<TABLE>_AUD` table and row-level
+trigger. The trigger writes a full snapshot with the entity `ID`, revision `REV`, and operation
+`REVTYPE`:
 
 | DML operation | Trigger image | `REVTYPE` |
 |---|---|---:|
@@ -220,6 +220,7 @@ Current and deleted records use the same row shape:
 | Record state | `originalRecordPresent` | `originalData` | `auditHistory` |
 |---|---:|---|---|
 | Present in source table | `true` | Complete current source row | Complete ordered history |
+| Source table has no `_AUD` table | `true` | Complete current source row | Empty list |
 | Deleted from source table | `false` | `null` | Complete history, including the `DELETE` snapshot |
 
 Representative populated response (the dynamic column names come from the selected Oracle tables):
@@ -457,12 +458,13 @@ Both return this `HolidayResponse` shape under `data`:
 Complete request bodies and every error response are maintained in
 [API_RESPONSE_EXAMPLES.md](docs/API_RESPONSE_EXAMPLES.md).
 
-## Exposing another auditable table
+## Exposing another table
 
 1. Create the source table using the configured prefix, default `PMC_`.
-2. Provide its matching audit table using the configured suffix, default `_AUD`.
-3. Confirm both tables share the configured `ID` column.
-4. Confirm the audit table contains the configured `REV` and `REVTYPE` columns.
+2. Confirm the source table contains the configured `ID` column.
+3. To expose history, provide its matching audit table using the configured suffix, default `_AUD`.
+4. When the audit table exists, confirm that it contains `ID`, `REV`, and `REVTYPE`. A malformed
+   existing audit table is reported as a configuration error rather than treated as source-only.
 5. Run the API as a least-privileged account in the schema that owns the source/audit tables;
    `USER_TABLES` intentionally does not discover objects owned by another schema.
 6. Validate the real Oracle execution plan and indexes.
@@ -474,9 +476,9 @@ table does not need its own `_AUD` companion for maker/checker enrichment. Only 
 rules are supported; shortened or exceptional table names are intentionally not mapped.
 Approval failures return absent approval data without changing the existing source/audit response.
 
-`/api/v1/allTable` returns every dynamically discovered prefixed, non-`_AUD` table. The detail
-endpoint still requires the selected table to have its exact `_AUD` companion, so a catalog item
-without one cannot be queried for audit history.
+`/api/v1/allTable` retains its existing dynamic discovery behavior. For the detail endpoint, a
+selected table without an `_AUD` companion returns complete source data, an empty `auditHistory`,
+and `ChangeSummary.EMPTY`. Deleted records cannot be recovered without an audit table.
 
 No Java registry, configuration allowlist, or table-specific generic-audit class is needed. The
 next request discovers the table dynamically.

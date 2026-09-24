@@ -2,10 +2,10 @@
 
 ## 1. Purpose
 
-Provide a reusable Java 21 and Spring Boot REST API that returns the current row from a discovered
-Oracle source table together with its complete Hibernate Envers history from `<TABLE>_AUD`. The
-generic audit endpoint must support multiple discovered tables without table-specific controllers,
-entities, repositories, or response models.
+Provide a reusable Java 21 and Spring Boot REST API that returns current rows from a discovered
+Oracle source table and complete Hibernate Envers history when `<TABLE>_AUD` exists. The generic
+endpoint must support audited and source-only tables without table-specific controllers, entities,
+repositories, or response models.
 
 ## 2. Users and use cases
 
@@ -162,7 +162,7 @@ The paginated GET returns `PageResponse<HolidayResponse>`. DELETE returns the su
 ### 5.1 Recommended Oracle architecture
 
 The production auditing model is **row-level trigger + audit table**. Oracle is the system of
-record for audit capture. Each exposed source table has:
+record for audit capture. Each audited source table has:
 
 - A corresponding `<SOURCE_TABLE>_AUD` history table.
 - An `AFTER INSERT OR UPDATE OR DELETE FOR EACH ROW` trigger managed by the database/DBA platform.
@@ -190,22 +190,26 @@ This API does not create triggers, generate revisions, or insert audit records.
 
 ### 5.2 API read behavior
 
-1. Resolve the audit table using `<SOURCE_TABLE>_AUD`.
-2. Require a shared single-column `ID` and audit columns `REV` and `REVTYPE`.
-3. Page distinct non-null IDs across the union of source and audit tables.
+1. Resolve the optional audit table using `<SOURCE_TABLE>_AUD`.
+2. Require `ID` on the source. When the audit table exists, require `ID`, `REV`, and `REVTYPE`;
+   never hide malformed audit metadata by falling back to source-only mode.
+3. Page distinct non-null IDs across the union of source and audit tables. When no audit table
+   exists, page IDs from the source table only.
 4. Include audit-only IDs so deleted entities remain discoverable.
-5. Load complete source rows and complete audit snapshots using `SELECT *`.
+5. Load complete source rows and, when available, complete audit snapshots using `SELECT *`.
 6. Group source and history rows using the existing ID representation without changing the
    original source/audit behavior.
 7. Sort audit history by `REV` ascending and assign a one-based `sequenceNumber` per entity.
 8. Map `REVTYPE`: `0=INSERT`, `1=UPDATE`, `2=DELETE`; other values become `UNKNOWN`.
 9. Calculate total, insert, update, delete, and unknown counts plus first/latest revisions.
-10. Resolve an optional `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL` table and load maker and
+10. For source-only tables, return an empty `auditHistory` and zero-valued `changeSummary`.
+11. Resolve an optional `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL` table and load maker and
     checker usernames for every page ID in one query.
 
 `REV` is a global transaction revision and can occur for multiple IDs. `sequenceNumber` is local
 to one entity. `originalData` is the current source row, not the initial snapshot. Deleted entities
 return `originalRecordPresent=false` and `originalData=null`.
+Without an audit table, deleted records cannot be returned because no persisted history remains.
 
 ## 6. Dynamic table discovery and Oracle access
 

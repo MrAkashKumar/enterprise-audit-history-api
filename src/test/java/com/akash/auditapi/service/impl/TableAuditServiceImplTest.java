@@ -185,6 +185,44 @@ class TableAuditServiceImplTest {
                 .isEqualTo(RevisionOperation.UNKNOWN);
     }
 
+    @Test void returnsCompleteSourceDataWithoutQueryingMissingAuditTable() {
+        TableDescriptor table = new TableDescriptor(
+                "PMC_CLIENT_PRODUCT_LIMIT", null, "ID", null, null);
+        ApprovalTableDescriptor approvalTable = new ApprovalTableDescriptor(
+                "PMC_CLIENT_PRODUCT_LIMIT_APPROVAL", "ID",
+                "MAKER_USERNAME", "CHECKER_USERNAME");
+        List<Object> ids = List.of(101);
+        Map<String, Object> sourceRow = Map.of(
+                "ID", 101,
+                "CLIENT_ID", 501,
+                "PRODUCT_ID", 301,
+                "LIMIT_AMOUNT", new BigDecimal("500000.00"),
+                "STATUS", "ACTIVE");
+        when(tableCatalog.resolve("PMC_CLIENT_PRODUCT_LIMIT"))
+                .thenReturn("PMC_CLIENT_PRODUCT_LIMIT");
+        when(tableResolver.resolve("PMC_CLIENT_PRODUCT_LIMIT")).thenReturn(table);
+        when(auditDao.findIdPage(table, 0, 10)).thenReturn(new AuditIdPage(ids, 1));
+        when(auditDao.findSourceRows(table, ids)).thenReturn(List.of(sourceRow));
+        when(approvalTableResolver.resolve("PMC_CLIENT_PRODUCT_LIMIT"))
+                .thenReturn(Optional.of(approvalTable));
+        when(approvalDao.findByIds(approvalTable, ids)).thenReturn(List.of(
+                new ApprovalRecord(101, "maker.user", "checker.user")));
+
+        SearchResponse response = service.sourceWithAuditHistory(
+                "PMC_CLIENT_PRODUCT_LIMIT", 0, 10);
+
+        assertThat(response.getRows()).hasSize(1);
+        assertThat(response.getRows().getFirst().originalRecordPresent()).isTrue();
+        assertThat(response.getRows().getFirst().originalData()).isEqualTo(sourceRow);
+        assertThat(response.getRows().getFirst().auditHistory()).isEmpty();
+        assertThat(response.getRows().getFirst().changeSummary()).isEqualTo(ChangeSummary.EMPTY);
+        assertThat(response.getRows().getFirst().approval().makerUsername())
+                .isEqualTo("maker.user");
+        assertThat(response.getRows().getFirst().approval().checkerUsername())
+                .isEqualTo("checker.user");
+        verify(auditDao, never()).findAuditRows(table, ids);
+    }
+
     @Test void calculatesPreviousAndNextForMiddlePages() {
         TableDescriptor table = new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE");

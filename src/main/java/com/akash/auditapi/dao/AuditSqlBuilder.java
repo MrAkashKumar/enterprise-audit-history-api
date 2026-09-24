@@ -18,15 +18,17 @@ public class AuditSqlBuilder {
     private static final String UNION_IDS_SQL =
             "select %1$s %2$s from %3$s where %1$s is not null "
                     + "union select %1$s %2$s from %4$s where %1$s is not null";
+    private static final String SOURCE_IDS_SQL =
+            "select %1$s %2$s from %3$s where %1$s is not null";
     private static final String ROWS_SQL =
             "select * from %1$s where %2$s in (:ids) order by %2$s, %3$s";
 
     String countDistinctIds(TableDescriptor table) {
-        return COUNT_IDS_SQL.formatted(unionIds(table));
+        return COUNT_IDS_SQL.formatted(ids(table));
     }
 
     String pageIds(TableDescriptor table) {
-        return PAGE_IDS_SQL.formatted(ENTITY_ID_ALIAS, TOTAL_ELEMENTS_ALIAS, unionIds(table));
+        return PAGE_IDS_SQL.formatted(ENTITY_ID_ALIAS, TOTAL_ELEMENTS_ALIAS, ids(table));
     }
 
     String sourceRows(TableDescriptor table) {
@@ -37,9 +39,13 @@ public class AuditSqlBuilder {
         return rows(table.auditTable(), table.idColumn(), table.auditOrderColumn());
     }
 
-    private String unionIds(TableDescriptor table) {
-        return UNION_IDS_SQL.formatted(table.idColumn(), ENTITY_ID_ALIAS,
-                table.sourceTable(), table.auditTable());
+    private String ids(TableDescriptor table) {
+        if (!table.hasAuditHistory()) {
+            return SOURCE_IDS_SQL.formatted(
+                    table.idColumn(), ENTITY_ID_ALIAS, table.sourceTable());
+        }
+        return UNION_IDS_SQL.formatted(
+                table.idColumn(), ENTITY_ID_ALIAS, table.sourceTable(), table.auditTable());
     }
 
     private String rows(String table, String idColumn, String orderColumn) {

@@ -34,6 +34,7 @@ class TableDescriptorResolverTest {
 
         assertThat(resolver.resolve("position_balance")).isEqualTo(new TableDescriptor(
                 "POSITION_BALANCE", "POSITION_BALANCE_AUD", "ID", "REV", "REVTYPE"));
+        assertThat(resolver.resolve("position_balance").hasAuditHistory()).isTrue();
     }
 
     @Test
@@ -53,12 +54,8 @@ class TableDescriptorResolverTest {
     }
 
     @Test
-    void rejectsAuditNameMissingPairAndMissingColumn() {
+    void rejectsAuditNameAndMissingRequiredColumns() {
         assertCode("POSITION_BALANCE_AUD", ApiOutcomeCode.AUDIT_TABLE_NOT_ACCEPTED);
-
-        when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
-                .thenReturn(Set.of("POSITION_BALANCE"));
-        assertCode("POSITION_BALANCE", ApiOutcomeCode.TABLE_PAIR_NOT_FOUND);
 
         when(metadataDao.findExistingTables("POSITION_BALANCE", "POSITION_BALANCE_AUD"))
                 .thenReturn(Set.of("POSITION_BALANCE", "POSITION_BALANCE_AUD"));
@@ -67,6 +64,46 @@ class TableDescriptorResolverTest {
                         "POSITION_BALANCE", Set.of("VERSION"),
                         "POSITION_BALANCE_AUD", Set.of("ID", "REV", "REVTYPE")));
         assertCode("POSITION_BALANCE", ApiOutcomeCode.MISSING_REQUIRED_COLUMN);
+    }
+
+    @Test
+    void resolvesSourceWithoutAuditTableAndDoesNotCacheMissingAuditMetadata() {
+        when(metadataDao.findExistingTables("PMC_CLIENT_PRODUCT_LIMIT",
+                "PMC_CLIENT_PRODUCT_LIMIT_AUD"))
+                .thenReturn(Set.of("PMC_CLIENT_PRODUCT_LIMIT"))
+                .thenReturn(Set.of("PMC_CLIENT_PRODUCT_LIMIT",
+                        "PMC_CLIENT_PRODUCT_LIMIT_AUD"));
+        when(metadataDao.findColumnsByTable("PMC_CLIENT_PRODUCT_LIMIT",
+                "PMC_CLIENT_PRODUCT_LIMIT_AUD"))
+                .thenReturn(Map.of("PMC_CLIENT_PRODUCT_LIMIT", Set.of("ID")))
+                .thenReturn(Map.of(
+                        "PMC_CLIENT_PRODUCT_LIMIT", Set.of("ID"),
+                        "PMC_CLIENT_PRODUCT_LIMIT_AUD", Set.of("ID", "REV", "REVTYPE")));
+
+        TableDescriptor sourceOnly = resolver.resolve("PMC_CLIENT_PRODUCT_LIMIT");
+        TableDescriptor audited = resolver.resolve("PMC_CLIENT_PRODUCT_LIMIT");
+
+        assertThat(sourceOnly).isEqualTo(new TableDescriptor(
+                "PMC_CLIENT_PRODUCT_LIMIT", null, "ID", null, null));
+        assertThat(sourceOnly.hasAuditHistory()).isFalse();
+        assertThat(audited.hasAuditHistory()).isTrue();
+        verify(metadataDao, times(2)).findExistingTables(
+                "PMC_CLIENT_PRODUCT_LIMIT", "PMC_CLIENT_PRODUCT_LIMIT_AUD");
+    }
+
+    @Test
+    void rejectsAnExistingAuditTableWithMissingRevisionMetadata() {
+        when(metadataDao.findExistingTables("PMC_CLIENT_PRODUCT_LIMIT",
+                "PMC_CLIENT_PRODUCT_LIMIT_AUD"))
+                .thenReturn(Set.of(
+                        "PMC_CLIENT_PRODUCT_LIMIT", "PMC_CLIENT_PRODUCT_LIMIT_AUD"));
+        when(metadataDao.findColumnsByTable("PMC_CLIENT_PRODUCT_LIMIT",
+                "PMC_CLIENT_PRODUCT_LIMIT_AUD"))
+                .thenReturn(Map.of(
+                        "PMC_CLIENT_PRODUCT_LIMIT", Set.of("ID"),
+                        "PMC_CLIENT_PRODUCT_LIMIT_AUD", Set.of("ID", "REVTYPE")));
+
+        assertCode("PMC_CLIENT_PRODUCT_LIMIT", ApiOutcomeCode.MISSING_REQUIRED_COLUMN);
     }
 
     @Test

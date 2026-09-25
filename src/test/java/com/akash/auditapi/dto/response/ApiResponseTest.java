@@ -39,6 +39,7 @@ class ApiResponseTest {
                         tuple("TABLE_PAIR_NOT_FOUND", "4008"),
                         tuple("MISSING_REQUIRED_COLUMN", "4009"),
                         tuple("HOLIDAY_NOT_FOUND", "4010"),
+                        tuple("COMMODITY_DEBIT_NOT_FOUND", "4011"),
                         tuple("INTERNAL_ERROR", "5000"),
                         tuple("DATABASE_ERROR", "5001"));
     }

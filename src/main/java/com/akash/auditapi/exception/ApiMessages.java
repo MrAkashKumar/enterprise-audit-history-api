@@ -60,6 +60,10 @@ public final class ApiMessages {
         return "Holiday not found: " + id;
     }
 
+    public static String commodityDebitNotFound(Long id) {
+        return "Commodity debit report data not found: " + id;
+    }
+
     public static String maximumPageSizeExceeded(int maximum) {
         return "audit-api.max-page-size cannot exceed " + maximum;
     }

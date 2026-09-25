@@ -389,7 +389,8 @@ status must identify the exact result represented by the message. Use `SUCCESS=2
 `REDIRECTION=3000`; use client-error codes `INVALID_TABLE_NAME=4000`, `INVALID_PAGE_NO=4001`, `INVALID_PAGE_SIZE=4002`,
 `AUDIT_TABLE_NOT_ACCEPTED=4003`, `VALIDATION_FAILED=4004`, `INVALID_REQUEST=4005`,
 `TABLE_NOT_ALLOWED=4007`, `TABLE_PAIR_NOT_FOUND=4008`,
-`MISSING_REQUIRED_COLUMN=4009`, `HOLIDAY_NOT_FOUND=4010`; and server-error codes
+`MISSING_REQUIRED_COLUMN=4009`, `HOLIDAY_NOT_FOUND=4010`,
+`COMMODITY_DEBIT_NOT_FOUND=4011`; and server-error codes
 `INTERNAL_ERROR=5000`, `DATABASE_ERROR=5001`. Never repeat the numeric HTTP status in JSON.
 
 Avoid nullable dereference warnings in exception handlers. Store nullable results locally and
@@ -415,6 +416,18 @@ validation, table/schema, database, and unexpected-error responses. Link it from
 README and PRD; do not let duplicated examples contradict it.
 
 ## 11. Configuration and code quality
+
+### Commodity debit PDF report
+
+Implement `GET /api/v1/reports/commodity-debits/{id}/pdf` as a JPA-backed download from
+`PMC_COMMODITY_DEBIT`. Use iText to generate A4 portrait output in memory and return
+`application/pdf` with the exact attachment filename `community.pdf`. Keep the implementation
+small: entity, repository, immutable DTO, reusable `PdfGenerationService`, report-specific
+`CommodityDebitPdfTemplate`, coordinating service, controller, and typed not-found exception.
+Do not add a mapper or template interface unless a second report proves it necessary. Render null
+database columns as blanks and keep all report values database-backed; only labels and layout are
+static. Preserve the standard JSON error envelope for missing data, database failures, and
+unexpected PDF failures. Confirm iText licensing is appropriate for the deployment.
 
 - Read Oracle secrets from environment variables or an enterprise secret manager.
 - Centralize API paths, defaults, messages, codes, headers, SQL, suffixes, and limits.
@@ -445,6 +458,8 @@ Create tests in the matching production packages. Cover:
 - Error mapping, all validation details, and safe messages
 - Full-context MockMvc coverage proving public endpoints and the common error envelope end to end
 - Typed Holiday controller, service, repository, entity, and validation behavior
+- Commodity debit JPA mapping, A4 PDF content, null handling, download headers, missing-row error,
+  and a full-context MockMvc download
 
 Run:
 

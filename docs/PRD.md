@@ -157,6 +157,29 @@ Responses never expose the JPA entity directly. POST/PUT return `HolidayResponse
 The paginated GET returns `PageResponse<HolidayResponse>`. DELETE returns the success envelope with
 `data: null`. POST uses HTTP `201`; other successful operations use HTTP `200`.
 
+### 4.4 Commodity debit PDF download
+
+```http
+GET /api/v1/reports/commodity-debits/{id}/pdf
+```
+
+The request has no body. The service reads the row identified by numeric `ID` from
+`PMC_COMMODITY_DEBIT` through JPA and renders an A4 portrait PDF using iText. The successful response
+uses `Content-Type: application/pdf`, disables caching, and downloads with the exact filename
+`community.pdf`. Binary success does not use the JSON success envelope; every failure still uses
+the standard JSON error envelope.
+
+The visual design follows the supplied SWIFT MT606 reference: incoming/customer-print headers,
+reference and routing blocks, fields `:20:`, `:21:`, `:26C:`, `:25:`, `:30:`, `:32F:`, `:87A:`,
+`:88D:`, an end-message separator, and the database-provided printed timestamp. Null database values
+render as blank text. The mapped Oracle columns are `ID`, `INCOMING_REFERENCE`,
+`TRANSACTION_REFERENCE`, `MESSAGE_TYPE`, `SENDER_BIC`, `SENDER_NAME`, `SENDER_LOCATION`,
+`RECEIVER_BIC`, `RECEIVER_NAME`, `RECEIVER_LOCATION`, `NETWORK_CHANNEL`, `NETWORK_REFERENCE`,
+`DATA_OWNER`, `PHASE_ACTION`, `MUR`, `RELATED_REFERENCE`, `DELIVERY_LOCATION`, `ALLOCATION`,
+`COMMODITY_TYPE`, `ACCOUNT_IDENTIFICATION`, `VALUE_DATE`, `COMMODITY_UNIT`, `COMMODITY_AMOUNT`,
+`COMMODITY_RECEIVER_IDENTIFIER`, `COMMODITY_RECEIVER_NAME`, `COMMODITY_RECEIVER_ADDRESS`,
+`BENEFICIARY_NAME`, `BENEFICIARY_ADDRESS`, and `PRINTED_ON`.
+
 ## 5. Audit behavior and data semantics
 
 ### 5.1 Recommended Oracle architecture
@@ -246,6 +269,7 @@ must monitor invalid/disabled triggers and periodically reconcile source/audit c
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
 | Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
 | Holiday missing | 404 | `HOLIDAY_NOT_FOUND` | `4010` |
+| Commodity debit report data missing | 404 | `COMMODITY_DEBIT_NOT_FOUND` | `4011` |
 | Unexpected exception | 500 | `INTERNAL_ERROR` | `5000` |
 | Oracle/JDBC failure | 500 | `DATABASE_ERROR` | `5001` |
 
@@ -319,6 +343,8 @@ Production JPA schema generation remains disabled.
 - DAO and JPA repository types exclusively own persistence access.
 - `RevisionOperation` centrally maps Envers-compatible `REVTYPE` values to response operations.
 - `GlobalExceptionHandler` centrally creates the common error envelope.
+- `PdfGenerationService` owns reusable in-memory A4 PDF creation; `CommodityDebitPdfTemplate` owns
+  only the commodity debit layout and receives an immutable database-backed DTO.
 - Components use constructor injection and must not depend on controller or transport details.
 
 These boundaries implement Single Responsibility and Dependency Inversion and must be preserved
@@ -332,7 +358,7 @@ when another source table is introduced.
 - Controller tests verify the common envelope, nested `data`, status/code/message consistency,
   validation details, and absence of `path`.
 - Full-context MockMvc tests verify table labels, malformed-request handling, and the complete
-  Holiday create/read/update/delete flow against isolated H2 persistence.
+  Holiday CRUD and commodity PDF download flows against isolated H2 persistence.
 - Service/DAO tests verify grouping, deleted IDs, revision ordering, full column preservation,
   pagination, SQL bindings, and metadata checks.
 - A clean build targeting Java 21 must compile both `src/main` and `src/test`; `mvn clean verify`
@@ -359,6 +385,8 @@ when another source table is introduced.
 - Invalid identifiers cannot alter generated SQL.
 - Repeated requests for a verified table reuse its successful source/audit descriptor metadata.
 - The Maven verification build and all package-aligned tests pass.
+- Commodity debit download returns a valid A4 PDF named `community.pdf`, with all dynamic values
+  loaded from `PMC_COMMODITY_DEBIT` and missing IDs mapped to `COMMODITY_DEBIT_NOT_FOUND/4011`.
 - JaCoCo reports and enforces 100% line and branch coverage for production logic; only the
   framework-delegating Spring Boot launcher is excluded.
 

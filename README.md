@@ -63,6 +63,7 @@ database/DBA platform. The Java service never creates triggers and never writes 
 - Spring Web and Jakarta Validation
 - Spring Data JPA
 - Spring JDBC / `NamedParameterJdbcTemplate`
+- iText 8 for A4 PDF generation
 - Oracle JDBC driver
 - Maven
 - JUnit 5, Mockito, MockMvc, AssertJ, and H2 for isolated tests
@@ -175,6 +176,22 @@ See [API Request and Response Examples](docs/API_RESPONSE_EXAMPLES.md) for every
 request body, success response, and supported error response.
 
 ## API endpoints
+
+### Download the commodity debit advice
+
+```http
+GET /api/v1/reports/commodity-debits/{id}/pdf
+```
+
+The endpoint has no request body. It loads one `PMC_COMMODITY_DEBIT` row through JPA, renders an A4
+portrait SWIFT MT606-inspired document, and returns `application/pdf` with
+`Content-Disposition: attachment; filename="community.pdf"`. The complete PDF is generated before
+the HTTP response starts. Missing data and generation/database failures therefore continue to use
+the common JSON error envelope.
+
+`PdfGenerationService` is the reusable in-memory iText engine; `CommodityDebitPdfTemplate` owns
+only this report's layout. The entity column mappings are listed in the PRD and must match the
+deployed Oracle table. No report values or runtime sample rows are hardcoded.
 
 ### Retrieve source rows with complete audit history
 
@@ -533,6 +550,7 @@ revisions.
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` |
 | Required audit column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` |
 | Holiday missing | 404 | `HOLIDAY_NOT_FOUND` | `4010` |
+| Commodity debit report data missing | 404 | `COMMODITY_DEBIT_NOT_FOUND` | `4011` |
 | Unexpected server failure | 500 | `INTERNAL_ERROR` | `5000` |
 | Oracle/JDBC failure | 500 | `DATABASE_ERROR` | `5001` |
 

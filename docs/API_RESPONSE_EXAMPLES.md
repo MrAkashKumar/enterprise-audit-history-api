@@ -313,6 +313,34 @@ No request body is accepted. HTTP `200`:
 }
 ```
 
+## 7. Download a commodity debit PDF
+
+```http
+GET /api/v1/reports/commodity-debits/1001/pdf
+```
+
+No request body is accepted. HTTP `200` is a binary response:
+
+```http
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="community.pdf"
+Cache-Control: no-store
+```
+
+When ID `1001` is absent, HTTP `404` returns JSON:
+
+```json
+{
+  "timestamp": "2026-09-25T10:00:00Z",
+  "status": "COMMODITY_DEBIT_NOT_FOUND",
+  "code": "4011",
+  "message": "Commodity debit report data not found: 1001",
+  "data": null,
+  "error": "Not Found",
+  "details": []
+}
+```
+
 ## Error scenarios
 
 Every error uses its exact outcome status and corresponding application code:
@@ -329,6 +357,7 @@ Every error uses its exact outcome status and corresponding application code:
 | Source/audit pair missing | 404 | `TABLE_PAIR_NOT_FOUND` | `4008` | Identifies the missing pair |
 | Required column missing | 422 | `MISSING_REQUIRED_COLUMN` | `4009` | Identifies the table and column |
 | Holiday not found | 404 | `HOLIDAY_NOT_FOUND` | `4010` | Identifies the holiday ID |
+| Commodity debit report data missing | 404 | `COMMODITY_DEBIT_NOT_FOUND` | `4011` | Identifies the report row ID |
 | Unexpected exception | 500 | `INTERNAL_ERROR` | `5000` | `An unexpected error occurred` |
 | Oracle/JDBC failure | 500 | `DATABASE_ERROR` | `5001` | `The database query could not be completed` |
 

@@ -52,4 +52,28 @@ class ApprovalDaoTest {
         assertThat(dao.findByIds(table, List.of(10))).containsExactly(
                 new ApprovalRecord(10, "maker.user", null));
     }
+
+    @Test
+    void loadsCheckerWithoutSelectingAnUnavailableMakerColumn() throws Exception {
+        ApprovalTableDescriptor checkerOnlyTable = new ApprovalTableDescriptor(
+                "PMC_CLIENT_APPROVAL_REQUEST", "ID", "MAKER_USERNAME", "CHECKER_USERNAME",
+                false);
+        ResultSet resultSet = mock(ResultSet.class);
+        when(resultSet.getObject("ID")).thenReturn(10);
+        when(resultSet.getString("CHECKER_USERNAME")).thenReturn("checker.user");
+        when(jdbcTemplate.query(anyString(), any(MapSqlParameterSource.class),
+                org.mockito.ArgumentMatchers.<RowMapper<ApprovalRecord>>any()))
+                .thenAnswer(invocation -> {
+                    assertThat(invocation.getArgument(0, String.class))
+                            .isEqualTo("select ID, CHECKER_USERNAME "
+                                    + "from PMC_CLIENT_APPROVAL_REQUEST "
+                                    + "where ID in (:ids) order by ID");
+                    RowMapper<ApprovalRecord> mapper = invocation.getArgument(2);
+                    return List.of(mapper.mapRow(resultSet, 0));
+                });
+
+        assertThat(dao.findByIds(checkerOnlyTable, List.of(10))).containsExactly(
+                new ApprovalRecord(10, null, "checker.user"));
+        verify(resultSet, never()).getString("MAKER_USERNAME");
+    }
 }

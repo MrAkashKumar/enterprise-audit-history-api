@@ -102,7 +102,7 @@ The backend keeps responsibilities small and uses constructor injection througho
 | `AuditHistoryAssembler` | Groups source/audit rows by ID and builds immutable response DTOs |
 | `TableAuditDao` | Executes parameterized source and audit queries |
 | `ApprovalTableResolver` | Resolves optional `_APPROVAL_REQUEST`/`_APPROVAL` metadata and caches verified matches |
-| `ApprovalDao` | Loads only ID, maker, and checker for all IDs on the current page |
+| `ApprovalDao` | Loads ID, checker, and maker when available for all IDs on the current page |
 | `AuditableTableCatalog` | Discovers source tables and resolves physical names and public labels |
 | `TableDescriptorResolver` | Verifies the source/audit pair and required metadata |
 | `RevisionOperation` | Maps Envers-compatible `REVTYPE` values to response operations |
@@ -322,6 +322,9 @@ fields: `sequenceNumber`, `revision`, `revisionTypeCode`, and `operation`.
 Approval lookup is optional and never changes pagination or revision counts. If no corresponding
 approval table or row exists, the response contains `approvalRecordPresent: false` with both
 usernames set to JSON `null`. A retained approval row is also returned for a deleted source entity.
+If the approval table has `ID` and `CHECKER_USERNAME` but no physical `MAKER_USERNAME` column, the
+row is still returned with `approvalRecordPresent: true`, `makerUsername: null`, and the stored
+checker username.
 
 Empty result shape:
 
@@ -487,8 +490,8 @@ Complete request bodies and every error response are maintained in
 6. Validate the real Oracle execution plan and indexes.
 
 Optional approval enrichment uses `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`. Each approval
-table must contain `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME`, and its numeric `ID` must equal
-the source entity ID. A source uses one convention or the other, never both. The selected approval
+table must contain `ID` and `CHECKER_USERNAME`; `MAKER_USERNAME` is optional. Its numeric `ID` must
+equal the source entity ID. A source uses one convention or the other, never both. The selected approval
 table does not need its own `_AUD` companion for maker/checker enrichment. Only these exact suffix
 rules are supported; shortened or exceptional table names are intentionally not mapped.
 Approval failures return absent approval data without changing the existing source/audit response.
@@ -523,7 +526,7 @@ Important defaults:
 | `audit-api.revision-type-column` | `REVTYPE` | Envers operation code |
 | `audit-api.max-page-size` | `200` | Maximum IDs accepted per request |
 | `audit-api.approval.id-column` | `ID` | Shared source/approval identifier |
-| `audit-api.approval.maker-username-column` | `MAKER_USERNAME` | Maker column |
+| `audit-api.approval.maker-username-column` | `MAKER_USERNAME` | Optional maker column |
 | `audit-api.approval.checker-username-column` | `CHECKER_USERNAME` | Checker column |
 
 The maximum page size cannot exceed Oracle's 1,000-expression `IN` limit. The lower default of

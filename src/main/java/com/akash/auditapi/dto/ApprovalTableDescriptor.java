@@ -5,5 +5,11 @@ package com.akash.auditapi.dto;
  * Instances are created only after Oracle metadata validation succeeds.
  */
 public record ApprovalTableDescriptor(String tableName, String idColumn,
-                                      String makerUsernameColumn, String checkerUsernameColumn) {
+                                      String makerUsernameColumn, String checkerUsernameColumn,
+                                      boolean makerUsernameColumnPresent) {
+
+    public ApprovalTableDescriptor(String tableName, String idColumn,
+                                   String makerUsernameColumn, String checkerUsernameColumn) {
+        this(tableName, idColumn, makerUsernameColumn, checkerUsernameColumn, true);
+    }
 }

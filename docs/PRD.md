@@ -113,6 +113,9 @@ match the same response entity. Existing source/audit grouping remains unchanged
 `approvalRecordPresent` is based on row existence, not status or checker nullability:
 an `APPROVED` row normally has maker/checker, while a `PENDING` row remains present with a nullable
 checker.
+The physical maker column is optional. When it is absent but a row with the required `ID` and
+`CHECKER_USERNAME` columns exists, return `approvalRecordPresent=true`, `makerUsername=null`, and
+the database checker value.
 
 The service must preserve database `null` values and source column order in map-backed snapshots.
 It must not replace full row data with a reduced, table-specific projection. The success response
@@ -226,8 +229,8 @@ This API does not create triggers, generate revisions, or insert audit records.
 8. Map `REVTYPE`: `0=INSERT`, `1=UPDATE`, `2=DELETE`; other values become `UNKNOWN`.
 9. Calculate total, insert, update, delete, and unknown counts plus first/latest revisions.
 10. For source-only tables, return an empty `auditHistory` and zero-valued `changeSummary`.
-11. Resolve an optional `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL` table and load maker and
-    checker usernames for every page ID in one query.
+11. Resolve an optional `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL` table and load checker,
+    plus maker when that physical column exists, for every page ID in one query.
 
 `REV` is a global transaction revision and can occur for multiple IDs. `sequenceNumber` is local
 to one entity. `originalData` is the current source row, not the initial snapshot. Deleted entities
@@ -323,7 +326,7 @@ load-test percentiles.
 | `audit-api.max-page-size` / `AUDIT_MAX_PAGE_SIZE` | Maximum accepted page size |
 Approval tables follow fixed exact naming: `<SOURCE>_APPROVAL_REQUEST` or `<SOURCE>_APPROVAL`.
 A source uses exactly one of these conventions, not both. The approval table needs the configured
-ID, maker, and checker columns, but no approval `_AUD` companion is required for source-row
+ID and checker columns; maker is optional, and no approval `_AUD` companion is required for source-row
 enrichment. Exceptional and abbreviated names are not mapped.
 
 Secrets must come from environment or an enterprise secret manager and must never be committed.

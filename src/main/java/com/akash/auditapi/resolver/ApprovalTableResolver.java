@@ -74,11 +74,12 @@ public class ApprovalTableResolver {
         }
 
         requireColumn(columns, table, properties.idColumn());
-        requireColumn(columns, table, properties.makerUsernameColumn());
         requireColumn(columns, table, properties.checkerUsernameColumn());
+        boolean makerUsernameColumnPresent = columns.contains(properties.makerUsernameColumn());
         log.info(APPROVAL_METADATA_VERIFIED_LOG, source, table);
         return Optional.of(new ApprovalTableDescriptor(table, properties.idColumn(),
-                properties.makerUsernameColumn(), properties.checkerUsernameColumn()));
+                properties.makerUsernameColumn(), properties.checkerUsernameColumn(),
+                makerUsernameColumnPresent));
     }
 
     private void requireColumn(Set<String> columns, String table, String column) {

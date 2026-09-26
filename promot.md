@@ -183,7 +183,9 @@ approval suffix, never both. Do not require an approval table to have its own `_
 enriching a source row with maker/checker usernames.
 Apply scale-neutral numeric normalization only when matching a response entity
 ID to an approval-table ID; do not change the existing source/audit grouping behavior. Then
-load only `ID`, `MAKER_USERNAME`, and `CHECKER_USERNAME` in one page-level query. Do not parse or
+require `ID` and `CHECKER_USERNAME`, treat the physical `MAKER_USERNAME` column as optional, and
+load only the columns that exist in one page-level query. When maker is absent, a matching row must
+still return `approvalRecordPresent=true`, `makerUsername=null`, and its checker value. Do not parse or
 return `PROPOSED_CHANGES`. Keep usernames for audit-only/deleted IDs when the approval row remains.
 
 State rules:
@@ -329,7 +331,7 @@ Optimized warm-request flow:
    query using `COUNT(*) OVER()`.
 3. Fetch all current rows for the page with one query.
 4. Fetch all audit rows for the page with one query ordered by `ID, REV`.
-5. If an approval table exists, fetch ID/maker/checker for the page with one query.
+5. If an approval table exists, fetch ID/checker and maker when present for the page with one query.
 6. Group histories, approvals, and operation counts in one Java pass.
 
 Normal populated pages use three queries without approval or four with approval, and no N+1 reads.

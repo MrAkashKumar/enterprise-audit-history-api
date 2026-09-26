@@ -45,6 +45,17 @@ class ApprovalTableResolverTest {
     }
 
     @Test
+    void resolvesApprovalTableWhenOptionalMakerColumnIsMissing() {
+        noColumns("PMC_CLIENT_APPROVAL_REQUEST");
+        when(metadataDao.findColumns("PMC_CLIENT_APPROVAL"))
+                .thenReturn(Set.of("ID", "CHECKER_USERNAME"));
+
+        assertThat(resolver.resolve("PMC_CLIENT")).contains(
+                new ApprovalTableDescriptor("PMC_CLIENT_APPROVAL", "ID", "MAKER_USERNAME",
+                        "CHECKER_USERNAME", false));
+    }
+
+    @Test
     void rechecksMetadataWhenNoSafeApprovalMatchExists() {
         noColumns("PMC_VAULT_APPROVAL_REQUEST");
         noColumns("PMC_VAULT_APPROVAL");
@@ -102,8 +113,7 @@ class ApprovalTableResolverTest {
     @Test
     void rejectsEveryMissingRequiredColumn() {
         assertMissingColumn(Set.of("MAKER_USERNAME", "CHECKER_USERNAME"), "ID", "PMC_ONE");
-        assertMissingColumn(Set.of("ID", "CHECKER_USERNAME"), "MAKER_USERNAME", "PMC_TWO");
-        assertMissingColumn(Set.of("ID", "MAKER_USERNAME"), "CHECKER_USERNAME", "PMC_THREE");
+        assertMissingColumn(Set.of("ID", "MAKER_USERNAME"), "CHECKER_USERNAME", "PMC_TWO");
     }
 
     @Test

@@ -10,12 +10,14 @@ import java.util.List;
 
 /**
  * Loads approval usernames for all IDs on a page in one database round trip.
- * Only the three required columns are materialized.
+ * Only the required ID/checker columns and the optional maker column are materialized.
  */
 @Repository
 public class ApprovalDao {
-    private static final String ROWS_SQL =
+    private static final String ROWS_WITH_MAKER_SQL =
             "select %1$s, %2$s, %3$s from %4$s where %1$s in (:ids) order by %1$s";
+    private static final String ROWS_WITHOUT_MAKER_SQL =
+            "select %1$s, %2$s from %3$s where %1$s in (:ids) order by %1$s";
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -31,12 +33,18 @@ public class ApprovalDao {
                 new MapSqlParameterSource("ids", ids),
                 (resultSet, rowNumber) -> new ApprovalRecord(
                         resultSet.getObject(table.idColumn()),
-                        resultSet.getString(table.makerUsernameColumn()),
+                        table.makerUsernameColumnPresent()
+                                ? resultSet.getString(table.makerUsernameColumn())
+                                : null,
                         resultSet.getString(table.checkerUsernameColumn())));
     }
 
     private String rowsSql(ApprovalTableDescriptor table) {
-        return ROWS_SQL.formatted(table.idColumn(), table.makerUsernameColumn(),
-                table.checkerUsernameColumn(), table.tableName());
+        if (table.makerUsernameColumnPresent()) {
+            return ROWS_WITH_MAKER_SQL.formatted(table.idColumn(), table.makerUsernameColumn(),
+                    table.checkerUsernameColumn(), table.tableName());
+        }
+        return ROWS_WITHOUT_MAKER_SQL.formatted(table.idColumn(), table.checkerUsernameColumn(),
+                table.tableName());
     }
 }
